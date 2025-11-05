@@ -14,8 +14,7 @@ class HiddenLayer:
       raise NameError('Activation_func function' + activationFunc + 'not supported yet!')
     
     elif activationFunc == 'sigmoid':
-      #implement me
-      raise NameError('Activation_func function' + activationFunc + 'not supported yet!')      
+      self.activationf = Activation_Sigmoid()
     
     elif activationFunc == 'tanh':
       #implement me
@@ -49,7 +48,7 @@ class myNeuralNetwork():
 
   def defineOptimizer(self,learningRate):
     #Update me, add different optimizers similar to adding activation function
-    self.optim = Optimizer_SGD(learning_rate=learningRate)
+    self.optim = Optimizer_SGD(learningRate)
 
   def build(self,inputSize,outputSize,numHiddenLayers,hiddenSize,activationFunc,rate=1.0):
     self.addInputSize(inputSize)
@@ -139,6 +138,22 @@ class Activation_ReLU:
     self.dinputs[self.inputs <=0]=0
 
 
+class Activation_Sigmoid:
+
+  def forward(self, inputs):
+    # Save inputs for backpropagation
+    self.inputs = inputs #is this used???
+
+    # Calculate output values from inputs
+    self.output = 1/(1+np.exp(-self.inputs))
+  
+  # Backward pass
+  def backward(self, dvalues):
+    self.dinputs = dvalues.copy()
+
+    self.dinputs = self.dinputs * self.output * (1 - self.output)
+  
+
 class Layer_Dense:
 
   
@@ -147,6 +162,8 @@ class Layer_Dense:
     self.weights = 0.01 * np.random.randn(n_inputs, n_neurons)
     # self.biases = np.zeros((1, n_neurons))
     self.biases = 0.01 * np.random.randn(1, n_neurons)
+    self.n_inputs = n_inputs
+    self.n_neurons = n_neurons
 
   # Forward pass
   def forward(self, inputs):
