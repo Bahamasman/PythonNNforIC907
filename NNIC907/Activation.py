@@ -30,4 +30,19 @@ class Activation_Sigmoid:
   def backward(self, dvalues):
     self.dinputs = dvalues.copy()
 
-    self.dinputs = self.dinputs * self.output * (1 - self.output)
+    self.dinputs *= self.output * (1 - self.output)
+  
+class Activation_TanhH:
+  
+  def forward(self, inputs):
+    # Save inputs for backpropagation
+    self.inputs = inputs
+    # Calculate output values from inputs
+    self.output = np.tanh(self.inputs)
+
+  # Backward pass
+  def backward(self, dvalues):
+    # Copy to avoid modifying the original array
+    self.dinputs = dvalues.copy()
+    # Derivative of tanh is 1 - tanh(x)^2
+    self.dinputs *= (1 - self.output ** 2)
