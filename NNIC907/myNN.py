@@ -21,8 +21,7 @@ class HiddenLayer:
       self.activationf = Activation_Sigmoid()
     
     elif activationFunc == 'tanh':
-      #implement me
-      raise NameError('Activation_func function' + activationFunc + 'not supported yet!')
+      self.activationf = Activation_TanhH()
    
     else:
       raise NameError('Activation_func function' + activationFunc + 'not supported yet!')
@@ -52,7 +51,12 @@ class myNeuralNetwork():
 
   def defineOptimizer(self,learningRate):
     #Update me, add different optimizers similar to adding activation function
-    self.optim = Optimizer_SGD(learningRate)
+    
+    # self.optim = Optimizer_SGD_Decay(learningRate,decay=1e-5)
+    
+    # self.optim = Optimizer_AdaGrad(learningRate,decay=1e-5)
+
+    self.optim = Optimizer_Adam(learningRate,decay=5e-7)
 
   def build(self,inputSize,outputSize,numHiddenLayers,hiddenSize,activationFunc,rate=1.0):
     self.addInputSize(inputSize)
@@ -119,6 +123,10 @@ class myNeuralNetwork():
     self.dinputs = dinputs
 
   def updateParam(self):
+    self.optim.pre_update_parameters()
+
     for layer in self.ModulesList :
       self.optim.update_params(layer)
+
+    self.optim.post_update_params()
 
