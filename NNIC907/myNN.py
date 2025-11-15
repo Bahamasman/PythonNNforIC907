@@ -38,25 +38,30 @@ class myNeuralNetwork():
       self.inputSize = size
 
   def addOutputSize(self,size):
-      self.output_size = size
+      self.outputSize = size
 
   def addHiddenLayer(self,size,activationFunc):
     newHiddenLayer = HiddenLayer()
     newHiddenLayer.createHiddenLayer(size,activationFunc)
     self.hiddenLayers.append(newHiddenLayer)
 
-  def definieLossFunction(self):
+  def defineLossFunction(self):
     #Update me, add different loss function similar to adding activation function
     self.lossf = Loss_MeanSquaredError()
 
-  def defineOptimizer(self,learningRate):
+  def defineOptimizer(self,optim,learningRate):
     #Update me, add different optimizers similar to adding activation function
-    
-    # self.optim = Optimizer_SGD_Decay(learningRate,decay=1e-5)
-    
-    # self.optim = Optimizer_AdaGrad(learningRate,decay=1e-5)
 
-    self.optim = Optimizer_Adam(learningRate,decay=5e-7)
+    if optim == 'SGD':
+      self.optim = Optimizer_SGD(learningRate)
+    elif optim == 'SGD_Decay':
+      self.optim = Optimizer_SGD_Decay(learningRate,decay=1e-5)
+    elif optim == 'AdaGrad':
+      self.optim = Optimizer_AdaGrad(learningRate,decay=1e-5)
+    elif optim == 'Adam':
+      self.optim = Optimizer_Adam(learningRate,decay=5e-7)
+    else:
+      raise NameError('Optimizer ' + optim + ' not supported!')
 
   def build(self,inputSize,outputSize,numHiddenLayers,hiddenSize,activationFunc,rate=1.0):
     self.addInputSize(inputSize)
@@ -74,14 +79,14 @@ class myNeuralNetwork():
           self.addHiddenLayer(int(np.ceil(hiddenSize * scale)),activationFunc)
           scale = scale * rate
 
-  def intialize(self):
+  def initialize(self):
     inputSize = self.inputSize
 
     for hiddenLayer in self.hiddenLayers:
       self.ModulesList.append(Layer_Dense(inputSize,hiddenLayer.size))
       inputSize = hiddenLayer.size
 
-    self.ModulesList.append(Layer_Dense(inputSize,self.output_size))
+    self.ModulesList.append(Layer_Dense(inputSize,self.outputSize))
 
 
   def forward(self,input):
@@ -97,6 +102,7 @@ class myNeuralNetwork():
     ff = self.ModulesList[-1]
     ff.forward(out)
     self.output = ff.output
+    return self.output
     
   def computeLoss(self,yreal):
 
@@ -123,10 +129,14 @@ class myNeuralNetwork():
     self.dinputs = dinputs
 
   def updateParam(self):
-    self.optim.pre_update_parameters()
+    # Check if optimizer has pre_update_parameters method (not all optimizers do)
+    if hasattr(self.optim, 'pre_update_parameters'):
+      self.optim.pre_update_parameters()
 
     for layer in self.ModulesList :
       self.optim.update_params(layer)
 
-    self.optim.post_update_params()
+    # Check if optimizer has post_update_params method (not all optimizers do)
+    if hasattr(self.optim, 'post_update_params'):
+      self.optim.post_update_params()
 

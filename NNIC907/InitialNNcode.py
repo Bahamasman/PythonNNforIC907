@@ -21,20 +21,20 @@ lossvec = np.zeros(epochs)
 # Propose your own number of hidden layers and number of neurons!
 # Create here dense layers, activation layer, loss and optimizer. Don't forget you need different activation objects for different layers
 
-hidden_size = 10
-num_hiddenLayers = 2
+hidden_size = [20]
+num_hiddenLayers = len(hidden_size)
 input_size = 1
 output_size = 1
 rate = 1.0 
-activationf = 'ReLU'
+activationf = 'tanh'
 
 NeuralNetwork = nn.myNeuralNetwork()
 NeuralNetwork.build(input_size,output_size,num_hiddenLayers,hidden_size,activationf,rate)
-NeuralNetwork.intialize()
+NeuralNetwork.initialize()
 
 
-NeuralNetwork.definieLossFunction() #Update me
-NeuralNetwork.defineOptimizer(lr) #Update me
+NeuralNetwork.defineLossFunction() #Update me
+NeuralNetwork.defineOptimizer('SGD', lr) #Update me
 
 # Convert data to our data structure
 # Implement using reshape
