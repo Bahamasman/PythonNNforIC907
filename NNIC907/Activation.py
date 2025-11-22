@@ -46,3 +46,33 @@ class Activation_TanhH:
     self.dinputs = dvalues.copy()
     # Derivative of tanh is 1 - tanh(x)^2
     self.dinputs *= (1 - self.output ** 2)
+
+class Activation_LeakyReLU:
+  
+  def __init__(self, alpha=0.01):
+    """
+    Initialize Leaky ReLU activation function
+    
+    Parameters:
+    alpha: float, slope for negative values (default 0.01)
+           Common values: 0.01, 0.1, 0.2
+    """
+    self.alpha = alpha
+  
+  def forward(self, inputs):
+    # Save inputs for backpropagation
+    self.inputs = inputs
+    # Calculate output values: max(alpha * x, x)
+    # For positive x: output = x
+    # For negative x: output = alpha * x
+    self.output = np.where(inputs > 0, inputs, self.alpha * inputs)
+
+  # Backward pass
+  def backward(self, dvalues):
+    # Copy to avoid modifying the original array
+    self.dinputs = dvalues.copy()
+    
+    # Gradient of Leaky ReLU:
+    # For positive inputs: gradient = 1
+    # For negative inputs: gradient = alpha
+    self.dinputs[self.inputs <= 0] *= self.alpha
