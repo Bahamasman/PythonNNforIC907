@@ -13,9 +13,8 @@ class HiddenLayer:
     if activationFunc == 'ReLU':
       self.activationf  = Activation_ReLU()
     
-    elif activationFunc == 'LeakReLU':
-      #implement me
-      raise NameError('Activation_func function' + activationFunc + 'not supported yet!')
+    elif activationFunc == 'LeakyReLU' or activationFunc == 'LeakReLU':
+      self.activationf = Activation_LeakyReLU()  # Uses default alpha=0.01
     
     elif activationFunc == 'sigmoid':
       self.activationf = Activation_Sigmoid()
@@ -107,7 +106,6 @@ class myNeuralNetwork():
   def computeLoss(self,yreal):
 
     return self.lossf.calculate(self.output,yreal)
-    
 
   def backward(self,yreal):
     
@@ -139,4 +137,73 @@ class myNeuralNetwork():
     # Check if optimizer has post_update_params method (not all optimizers do)
     if hasattr(self.optim, 'post_update_params'):
       self.optim.post_update_params()
+
+  def train_test_split(self, X, y, test_size=0.2, random_state=None):
+    """
+    Split data into training and testing sets
+    
+    Parameters:
+    X: input data (features)
+    y: target data (labels)
+    test_size: fraction of data to use for testing (default 0.2 = 20%)
+    random_state: seed for reproducible splits
+    
+    Returns:
+    X_train, X_test, y_train, y_test
+    """
+    if random_state is not None:
+        np.random.seed(random_state)
+    
+    n_samples = X.shape[0]
+    n_test = int(n_samples * test_size)
+    
+    # Create random indices
+    indices = np.random.permutation(n_samples)
+    
+    # Split indices
+    test_indices = indices[:n_test]
+    train_indices = indices[n_test:]
+    
+    # Split data
+    X_train = X[train_indices]
+    X_test = X[test_indices]
+    y_train = y[train_indices]
+    y_test = y[test_indices]
+    
+    return X_train, X_test, y_train, y_test
+
+  def evaluate(self, X_test, y_test):
+    """
+    Evaluate the model on test data
+    
+    Parameters:
+    X_test: test input data
+    y_test: test target data
+    
+    Returns:
+    Dictionary with evaluation metrics
+    """
+    # Get predictions
+    predictions = self.forward(X_test)
+    
+    # Calculate metrics
+    test_loss = self.computeLoss(y_test)
+    
+    # Calculate MSE and MAE
+    mse = np.mean((y_test.flatten() - predictions.flatten()) ** 2)
+    mae = np.mean(np.abs(y_test.flatten() - predictions.flatten()))
+    
+    # Calculate R² score
+    y_mean = np.mean(y_test.flatten())
+    ss_tot = np.sum((y_test.flatten() - y_mean) ** 2)
+    ss_res = np.sum((y_test.flatten() - predictions.flatten()) ** 2)
+    r2_score = 1 - (ss_res / ss_tot) if ss_tot != 0 else 1.0
+    
+    return {
+        'test_loss': test_loss,
+        'mse': mse,
+        'mae': mae,
+        'r2_score': r2_score,
+        'predictions': predictions
+    }
 
