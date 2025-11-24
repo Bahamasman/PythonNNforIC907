@@ -4,9 +4,11 @@ import time
 import myNN as nn
 
 # Generate your existing data
-xpts = np.linspace(0,1,50)
-npts = len(xpts)
-yreal = np.sin(30*xpts) + np.cos(10*xpts) + 2 + xpts**2
+npts = 100
+xpts = np.linspace(0,1,npts)
+def y_function(x):
+    return np.sin(30*x) + np.cos(10*x) + 2 + x**2
+yreal = y_function(xpts)
 
 # Prepare data
 X = xpts.reshape(npts,1)
@@ -143,7 +145,7 @@ x_plot = np.linspace(0, 1, 200)
 X_plot = x_plot.reshape(-1, 1)
 y_plot_pred = NeuralNetwork.forward(X_plot)
 
-axs[2].plot(x_plot, np.sin(30*x_plot) + np.cos(10*x_plot) + 2 + x_plot**2, 
+axs[2].plot(x_plot, y_function(x_plot), 
            'g-', label='True Function', linewidth=2)
 axs[2].plot(x_plot, y_plot_pred.flatten(), 'r-', label='NN Prediction', linewidth=2)
 axs[2].scatter(X_test.flatten(), y_test.flatten(), 
