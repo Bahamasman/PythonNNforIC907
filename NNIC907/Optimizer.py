@@ -1,3 +1,4 @@
+import numpy as np
 from LayerDense import *
 
 # SGD optimizer
@@ -81,8 +82,8 @@ class Optimizer_RMSProp(Optimizer):
       layer.biases_cache = np.zeros_like(layer.biases)
 
     # update caches with the current gradients, in a average sense
-    layer.weight_cache += self.rho * layer.weight_cache + (1 - self.rho) * layer.dweights**2 
-    layer.biases_cache += self.rho * layer.biases_cache + (1 - self.rho) * layer.dbiases**2
+    layer.weight_cache = self.rho * layer.weight_cache + (1 - self.rho) * layer.dweights**2 
+    layer.biases_cache = self.rho * layer.biases_cache + (1 - self.rho) * layer.dbiases**2
 
     # update params with normalized gradient
     layer.weights += - self.current_learning_rate * layer.dweights / (np.sqrt(layer.weight_cache) + self.epsilon)
@@ -128,3 +129,60 @@ class Optimizer_Adam(Optimizer):
     # update params with normalized gradient
     layer.weights += - self.current_learning_rate * correct_weight_momentum / (np.sqrt(correct_weight_cache) + self.epsilon)
     layer.biases += - self.current_learning_rate * correct_biases_momentum / (np.sqrt(correct_biases_cache) + self.epsilon)
+
+class Optimizer_SGD_Momentum(Optimizer):
+  """
+  SGD optimizer with momentum for improved convergence.
+  Momentum helps accelerate gradients vectors in the right directions,
+  thus leading to faster converging.
+  """
+  def __init__(self, learning_rate:float=1.0, decay:float=0., momentum:float=0.9):
+    super().__init__(learning_rate, decay)
+    self.momentum = momentum # momentum coefficient
+
+  def update_params(self, layer:Layer_Dense):
+    # if layer does not have a momentum array, create it initialized with zeros
+    if not hasattr(layer, 'weight_momentum'):
+      layer.weight_momentum = np.zeros_like(layer.weights)
+      layer.biases_momentum = np.zeros_like(layer.biases)
+
+    # Clip gradients to prevent explosion with high learning rates
+    max_grad_norm = 10.0  # Maximum gradient norm
+    weight_grad_norm = np.linalg.norm(layer.dweights)
+    bias_grad_norm = np.linalg.norm(layer.dbiases)
+    
+    # Clip weight gradients
+    if weight_grad_norm > max_grad_norm:
+      layer.dweights = layer.dweights * (max_grad_norm / weight_grad_norm)
+    
+    # Clip bias gradients  
+    if bias_grad_norm > max_grad_norm:
+      layer.dbiases = layer.dbiases * (max_grad_norm / bias_grad_norm)
+
+    # Update momentum with current gradients
+    layer.weight_momentum = self.momentum * layer.weight_momentum - self.current_learning_rate * layer.dweights
+    layer.biases_momentum = self.momentum * layer.biases_momentum - self.current_learning_rate * layer.dbiases
+
+    # Clip momentum to prevent explosion
+    max_momentum_norm = 50.0  # Maximum momentum norm
+    weight_momentum_norm = np.linalg.norm(layer.weight_momentum)
+    bias_momentum_norm = np.linalg.norm(layer.biases_momentum)
+    
+    if weight_momentum_norm > max_momentum_norm:
+      layer.weight_momentum = layer.weight_momentum * (max_momentum_norm / weight_momentum_norm)
+      
+    if bias_momentum_norm > max_momentum_norm:
+      layer.biases_momentum = layer.biases_momentum * (max_momentum_norm / bias_momentum_norm)
+
+    # Update params with momentum
+    layer.weights += layer.weight_momentum
+    layer.biases += layer.biases_momentum
+
+    # Check for NaN or infinite values
+    if np.any(np.isnan(layer.weights)) or np.any(np.isinf(layer.weights)):
+      print(f"Warning: NaN or Inf detected in weights. Resetting momentum.")
+      layer.weight_momentum = np.zeros_like(layer.weights)
+      
+    if np.any(np.isnan(layer.biases)) or np.any(np.isinf(layer.biases)):
+      print(f"Warning: NaN or Inf detected in biases. Resetting momentum.")
+      layer.biases_momentum = np.zeros_like(layer.biases)

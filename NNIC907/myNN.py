@@ -55,8 +55,12 @@ class myNeuralNetwork():
       self.optim = Optimizer_SGD(learningRate)
     elif optim == 'SGD_Decay':
       self.optim = Optimizer_SGD_Decay(learningRate,decay=1e-5)
+    elif optim == 'SGD_Momentum':
+      self.optim = Optimizer_SGD_Momentum(learningRate,decay=1e-5,momentum=0.9)
     elif optim == 'AdaGrad':
       self.optim = Optimizer_AdaGrad(learningRate,decay=1e-5)
+    elif optim == 'RMSProp':
+      self.optim = Optimizer_RMSProp(learningRate,decay=1e-5)
     elif optim == 'Adam':
       self.optim = Optimizer_Adam(learningRate,decay=5e-7)
     else:
