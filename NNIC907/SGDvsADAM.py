@@ -17,7 +17,7 @@ freal = np.array([[f([x, y]) for x in xpts] for y in ypts])  # shape (npts, npts
 
 # Learning rate and number of epochs
 lr = 0.1
-epochs = 10001  # Reduced for testing
+epochs = 20001  # Reduced for testing
 lossvec1 = np.zeros(epochs)
 lossvec2 = np.zeros(epochs)
 
@@ -27,7 +27,7 @@ num_hiddenLayers = len(hidden_size)
 input_size = 2
 output_size = 1
 rate = 1.0
-activationf = 'ReLU'
+activationf = 'LeakyReLU'
 optim1 = 'SGD_Decay'
 optim2 = 'Adam'
 # Convert 2D grid to training batches: inputs shape (N,2), targets shape (N,1)
