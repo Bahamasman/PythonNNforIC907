@@ -17,11 +17,12 @@ lr = 0.1
 epochs = 10001
 lossvec = np.zeros(epochs)
 
+
 # Initialize layer, loss and optimizer
 # Propose your own number of hidden layers and number of neurons!
 # Create here dense layers, activation layer, loss and optimizer. Don't forget you need different activation objects for different layers
 
-hidden_size = [20]
+hidden_size = [10]
 num_hiddenLayers = len(hidden_size)
 input_size = 1
 output_size = 1
@@ -59,9 +60,11 @@ for epoch in range(epochs):
   # Store loss and parameters for plotting
   lossvec[epoch] = lossk
 
+
   # Print every 500 epochs
   if epoch % 500 == 0:
     print(f"epoch {epoch}: loss = {lossk:.10f}")
+
 
 # Create a 1x2 subplot
 fig, axs = plt.subplots(1, 2, figsize=(12, 4))
@@ -80,6 +83,7 @@ axs[1].set_xlabel('Epochs')
 axs[1].set_ylabel('Loss')
 axs[1].set_title('Loss over epochs')
 axs[1].legend()
+
 
 plt.tight_layout()
 plt.show()
