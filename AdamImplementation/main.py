@@ -7,7 +7,7 @@ import myNN as nn
 npts = 100
 xpts = np.linspace(0,1,npts)
 def y_function(x):
-    return np.sin(30*x) + np.cos(10*x) + 2 + x**2
+    return np.sin(30*x) + np.cos(10*x) + x**2
 yreal = y_function(xpts)
 
 # Prepare data
@@ -16,7 +16,7 @@ y = yreal.reshape(npts,1)
 
 # Create network
 NeuralNetwork = nn.myNeuralNetwork()
-hidden_size = [100,100]
+hidden_size = [200]
 num_hiddenLayers = len(hidden_size)
 input_size = 1
 output_size = 1
@@ -25,8 +25,8 @@ activationf = 'tanh'
 #Options for activationf: 'ReLU', 'LeakyReLU', 'tanh', 'sigmoid'
 
 # Training parameters
-epochs = 10001
-lr = 0.01
+epochs = 30001
+lr = 0.1
 
 NeuralNetwork.build(input_size,output_size,num_hiddenLayers,hidden_size,activationf,rate)
 NeuralNetwork.initialize()
