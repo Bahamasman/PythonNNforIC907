@@ -20,6 +20,9 @@ import matplotlib.gridspec as gridspec
 from collections import OrderedDict
 # from tqdm import tqdm
 
+# For reproducibility
+torch.manual_seed(0)
+np.random.seed(0)
 
 ############################################# Helper Functions #######################################################
 # Numpy array to Torch tensor
@@ -36,6 +39,13 @@ def to_float(obj):
     return [to_float(x) for x in obj]
   else:
     return float(obj)
+  
+def is_numeric(s):
+    try:
+        float(s)  # Try converting to a float 
+        return True # Return True
+    except ValueError:
+        return False # Return False otherwise
 
 # Plot loss
 def plot_loss(losses):
@@ -68,28 +78,6 @@ def plot_solution(pts:np.ndarray, u:np.ndarray):
   ax.set_xlabel('x')
   ax.set_ylabel('t')
   ax.set_zlabel('u(x,t)')
-  plt.show()
-
-# Plot PINN predictions
-def plot_predictions(net, pts:np.ndarray, u:np.ndarray, pts_train:np.ndarray, u_train:np.ndarray):
-  # Predicting displacement using the trained model
-  predicted_disp = net.predict(pts)
-
-  x = pts.T[0]
-  t = pts.T[1]
-  x_train = pts_train.T[0]
-  t_train = pts_train.T[1]
-
-  fig = plt.figure()
-  ax = fig.add_subplot(111, projection='3d')
-  ax.scatter(x, t, u, label='Bar Displacement', color='blue')
-  ax.scatter(x_train, t_train, u_train, label='Training Data', color='red')
-  ax.plot(x, t, predicted_disp, label='PINN Prediction', color='green')
-
-  ax.set_xlabel('x')
-  ax.set_ylabel('t')
-  ax.set_zlabel('u(x,t)')
-  plt.legend()
   plt.show()
 
 # Plot PINN predictions
@@ -129,6 +117,7 @@ def density_plot(): #TODO
   ax = fig.add_subplot(111) # Adds a single subplot (an Axes object) to the figure, 1 row, 1 column, 1 subplot
 
   # Displays a 2D array (U_pred.T) as a colored image
+  UI = griddata(X_star, u_star, (X, T), method='cubic') #! APAGAR
   UI = griddata(pts, u_pred, (XI, TI), method='cubic')
   h = ax.imshow(UI, interpolation='nearest', cmap='rainbow', 
               extent=[x.min(), x.max(), t.min(), t.max()],
@@ -221,6 +210,8 @@ class PINN_DynamicBar():
       # Boundaries
       self.Xmin = np_to_th(Xmin).to(device)
       self.Xmax = np_to_th(Xmax).to(device)  
+      self.x_min, self.t_min = self.Xmin[0], self.Xmin[1]
+      self.x_max, self.t_max = self.Xmax[0], self.Xmax[1]
 
       # Data
       self.x = np_to_th(X[:, 0:1]).requires_grad_(True).to(device)
@@ -228,7 +219,7 @@ class PINN_DynamicBar():
       self.u = np_to_th(u).to(device)  
 
       # Defining learnable parameters
-      self.elas = torch.tensor([0.0], requires_grad=True).to(device)
+      self.elas = torch.tensor([[1.0]], requires_grad=True).to(device)
       #self.rho = torch.tensor([0.0], requires_grad=True).to(device)  
       self.elas = torch.nn.Parameter(self.elas)
       #self.rho = torch.nn.Parameter(self.rho)  
@@ -245,87 +236,88 @@ class PINN_DynamicBar():
       # Optimizers
       self.epochs = NN_infos[4]
       self.optim_Adam = torch.optim.Adam(self.model.parameters(), lr = NN_infos[5])
-      self.optimizer = torch.optim.LBFGS(
+      self.optim_LBFGS = torch.optim.LBFGS(
           self.model.parameters(),
           lr=1.0,
-          max_iter=50000,
+          max_iter=5000,
           max_eval=50000,
           history_size=50,
-          tolerance_grad=1e-5,
-          tolerance_change=1.0 * np.finfo(float).eps,
+          tolerance_grad=1e-9,
+          tolerance_change=1e-12, 
           line_search_fn="strong_wolfe")  
 
   def net_u(self, x, t):
-      u = self.model(torch.cat([x, t], dim=1)) # concatenate into model inputs
+      x_n = 2.0*(x - self.x_min)/(self.x_max - self.x_min) - 1.0 #! SEE THIS
+      t_n = 2.0*(t - self.t_min)/(self.t_max - self.t_min) - 1.0
+      u = self.model(torch.cat([x_n, t_n], dim=1)) # concatenate into model inputs
       return u  
+     
   
-  # PDE 
-  # def net_physics(self, x, t):  
-  #     elas = self.elas
-  #     # rho = torch.exp(self.rho)
-  #     u = self.net_u(x, t)  
-  #     dudt = grad(u, t)
-  #     d2udt2 = grad(dudt, t)
-  #     dudx = grad(u, x)
-  #     d2udx2 = grad(elas*dudx, x)   
-  #     pde = rho * A * d2udt2 - A * d2udx2 - f
-  #     return pde  
+  def compute_losses(self, x_colloc, t_colloc):
+      """
+      x_colloc, t_colloc: PDE residual evaluation
+      u_bc: boundary condition points
+      """
 
-  # PDE embeded in the NN through the Loss Function 
-  def loss_func(self):
-      u_pred = self.net_u(self.x, self.t)
-      f_pred = 0
-      bc_pred = 0
-      if self.bc:
-        bc_pred = self.bc(self)
+      # Data loss (observations)
+      u_pred_data = self.net_u(self.x, self.t)
+      loss_data = torch.mean((self.u - u_pred_data)**2)
+
+      # PDE loss
+      loss_pde = torch.tensor(0.0, requires_grad=True).to(device)
       if self.pde:
-        f_pred = self.pde(self, self.x, self.t)
-      loss = torch.mean((self.u - u_pred) ** 2) + self.weight_pde*torch.mean(f_pred ** 2) + self.weight_bc*torch.mean(bc_pred ** 2)
-      
-      self.optimizer.zero_grad()
-      loss.backward()  
-      self.epochs += 1
-      if self.epochs % 100 == 0:
-          print('Loss: %e, E: %.5f' %
-              (
-                  loss.item(),
-                  self.elas.item(),
-                  # torch.exp(self.rho.detach()).item()
-              ))
-      return loss  
+        pinn = self.pde(self, x_colloc, t_colloc)  # note: uses your net_physics signature
+        loss_pde = torch.mean(pinn**2)
 
+      # BC loss
+      loss_bc = torch.tensor(0.0).to(device)
+      if self.bc:
+        bc_res = self.bc(self)
+        loss_bc = torch.mean(bc_res**2)
+
+      total = loss_data + self.weight_pde * loss_pde + self.weight_bc * loss_bc
+
+      return total, loss_data, loss_pde, loss_bc
+     
   
-  def train(self):
+  def train(self, nCollocation):
       self.model.train() # Set model to training mode
       losses = []  
-      for epoch in range(self.epochs):
-          u_pred = self.net_u(self.x, self.t)
-          loss_pde = 0.0
-          loss_bc = 0.0
-          if self.bc: #! STILL NOT WORKING
-            bc_pred = self.bc(self)
-            loss_bc = torch.mean(bc_pred ** 2)
-          if self.pde:
-            pde_pred = self.pde(self, self.x, self.t)
-            loss_pde = torch.mean(pde_pred ** 2)
-          loss = torch.mean((self.u - u_pred) ** 2) + self.weight_pde*loss_pde + self.weight_bc*loss_bc
 
-          # Backward and optimize
-          self.optim_Adam.zero_grad()
-          loss.backward()
-          self.optim_Adam.step()
-          losses.append(loss.item())  
-          if epoch % 100 == 0:
-              print('It: %d, Loss: %.3e, E: %.5f' %
-                  (
-                      epoch,
-                      loss.item(),
-                      self.elas.item(),
-                      # torch.exp(self.rho).item()
-                  ))  
+      # Pre-generate uniform collocation points
+      x_min_f = float(self.x_min.detach().cpu().item())
+      x_max_f = float(self.x_max.detach().cpu().item())
+      t_min_f = float(self.t_min.detach().cpu().item())
+      t_max_f = float(self.t_max.detach().cpu().item())
+      x_colloc_np = np.random.uniform(x_min_f, x_max_f, size=(nCollocation, 1))
+      t_colloc_np = np.random.uniform(t_min_f, t_max_f, size=(nCollocation, 1))
+      x_colloc = np_to_th(x_colloc_np).requires_grad_(True).to(device)
+      t_colloc = np_to_th(t_colloc_np).requires_grad_(True).to(device)
+      
+      for epoch in range(self.epochs):
+          
+        # Compute Losses
+        total_loss, lossData, lossPDE, lossBC = self.compute_losses(x_colloc, t_colloc)
+
+        # Optimizer and Backward
+        self.optim_Adam.zero_grad()
+        total_loss.backward()
+        self.optim_Adam.step()
+
+        losses.append(total_loss.item()) 
+
+        if epoch % 100 == 0:
+          print(f"Epoch {epoch}/{self.epochs} | Loss: {total_loss.item():.3e} | E: {self.model.Elas.item():.5f}")
               
-      # Backward and optimize
-      # self.optimizer.step(self.loss_func) #using torch.optim.LBFGS
+      # captures collocation points
+      def loss_func():
+        self.optim_LBFGS.zero_grad()
+        total_loss, *_ = self.compute_losses(x_colloc, t_colloc)
+        total_loss.backward()
+        return total_loss
+      
+      print("Refinament with L-BFGS...")
+      self.optim_LBFGS.step(loss_func) #using torch.optim.LBFGS
 
       return losses  
   
@@ -333,8 +325,12 @@ class PINN_DynamicBar():
       x = np_to_th(X[:, 0:1]).requires_grad_(True).to(device)
       t = np_to_th(X[:, 1:2]).requires_grad_(True).to(device)  
       self.model.eval() # Set model to evaluation mode
-      u = self.net_u(x, t)
-      pinn = self.pde(self, self.x, self.t)
-      u = u.detach().cpu().numpy()
-      pinn = pinn.detach().cpu().numpy()
-      return u
+
+      with torch.no_grad():
+        u_th = self.net_u(x, t)
+            
+      pinn_th = self.pde(self, self.x, self.t)
+
+      u_th = u_th.detach().cpu().numpy()
+      pinn_th = pinn_th.detach().cpu().numpy()
+      return u_th # return pinn_th

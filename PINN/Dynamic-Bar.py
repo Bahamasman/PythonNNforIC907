@@ -1,15 +1,14 @@
 from pinn import *
-#TODO Check the pde
+import time
+
 #TODO Pass NN loss as optional
 #TODO Add BCs
-#TODO Build more cases
-#TODO Make better way to inform A, L, rho, E, f maybe a .json?
-#TODO Choose one way to build NN
+#TODO Normalize E
 
-############################################# Initial Configurations #######################################################
-input_path = "/home/marina/programming/NeuralNetwork-Research/PythonNNforIC907/PINN/"
-input_file = "results.json"
-input_data = input_path+input_file #! DO THIS IN A SMATER WAY
+############################################# Impoting Data #######################################################
+input_path = "C:\\Users\\theyd\\OneDrive\\Desktop\\marina\\PythonNNforIC907\\PINN\\InputData\\"
+input_file = "data1.json"
+input_data = input_path + input_file #! DO THIS IN A SMATER WAY
 
 with open(input_data) as myFile:
     mathematica_data = json.load(myFile)
@@ -18,86 +17,85 @@ with open(input_data) as myFile:
 L = to_float(mathematica_data["Properties"]["L"])
 Interval = to_float(mathematica_data["Properties"]["Interval"])
 A = to_float(mathematica_data["Properties"]["A"])
+rho = to_float(mathematica_data["Properties"]["rho"])
 E_type = mathematica_data["Properties"]["E"]
-rho_type = mathematica_data["Properties"]["rho"]
 f_type = mathematica_data["Properties"]["f"]
 
+if("u_x0") in mathematica_data["BCs_ICs"]: u_x0 = to_float(mathematica_data["BCs_ICs"]["u_x0"])
+if("u_xL") in mathematica_data["BCs_ICs"]: u_xL = to_float(mathematica_data["BCs_ICs"]["u_xL"])
+if("u_t0") in mathematica_data["BCs_ICs"]: u_t0 = to_float(mathematica_data["BCs_ICs"]["u_t0"])
+if("du_dx0") in mathematica_data["BCs_ICs"]: du_dx0 = to_float(mathematica_data["BCs_ICs"]["du_dx0"])
+
 def E(x:torch.Tensor):
-  if E_type == "Constant":
-    return 2.0
+  if is_numeric(E_type):
+    return to_float(E_type)*torch.ones_like(x)
   elif E_type == "Polynomial":
     return x
   elif E_type == "Piecewise":
     return torch.where(x < 2., 2.0, 5.0) 
 
-def rho(x:torch.Tensor):
-  if rho_type == "Constant":
-    return 1.0
-  elif rho_type == "Polynomial":
-    return x
-  elif rho_type == "Piecewise":
-    return torch.where(x < 2., x, 30.0) # allows for element-wise selection from two tensors based on a boolean condition
-
 def f(x:torch.Tensor):
-  if f_type == "Constant":
-    return 2.0
+  if is_numeric(f_type):
+    return to_float(f_type)*torch.ones_like(x)
   elif f_type == "Polynomial":
     return 2*x
   elif f_type == "Piecewise":
-    return torch.where(x < 2., x**2, 5.0)
+    return torch.where(x < 2., torch.tensor(10000000.0), torch.tensor(0.0)) # allows for element-wise selection from two tensors based on a boolean condition
 
-# u_x0 = 
-# u_t0 = 
 
-def net_physics(model:torch.nn.Module, x, t): #! ADD BC
+############################################# Initial Configurations #######################################################
+# Dynamic-Bar PDE
+def net_physics(model:torch.nn.Module, x, t):
 
-  elas = model.elas
+  Elas = model.elas
   # rho = model.rho
   u = model.net_u(x, t)
 
   dudt = grad(u, t)
   d2udt2 = grad(dudt, t)
   dudx = grad(u, x)
-  d2udx2 = grad(elas*dudx, x) #! CHECK
+  d2udx2 = grad(Elas*dudx, x) 
 
-  pde = rho(x) * A * d2udt2 - A * d2udx2 - f(x)
-
+  pde = rho * A * d2udt2 - A * d2udx2 - f(x) #! CHECK 
   return pde
 
+#Boundary/Initial Conditions
+def net_bc(model):
+  n_bc = 200 
+  t0 = torch.linspace(0, Interval, n_bc).view(-1, 1).requires_grad_(True) # generate points t to impose BC u_0 = 0
+  x0 = torch.zeros_like(t0).requires_grad_(True)
+  u_x0_pred = model.net_u(x0, t0)
 
-def net_bc(model:torch.nn.Module): 
-  x_0 = np_to_th(np.array([0.0])).requires_grad_(True) # x=0
-  t_0 = np_to_th(np.array([0.0])).requires_grad_(True) # t=0
-  u_0_pred = model.net_u(x_0, t_0)
+  xL = L * torch.ones_like(t0).requires_grad_(True)
+  u_xL_pred = model.net_u(xL, t0)
 
-  return u_0_pred
+  x_init = torch.linspace(0, L, n_bc).view(-1, 1).requires_grad_(True)
+  t_init = torch.zeros_like(x_init)
+  u_t0_pred = model.net_u(x_init, t_init)
 
+  bc_res = u_x0_pred - u_x0
+  # bc_res = u_xL_pred - u_xL
+  # bc_res = u_t0_pred - u_t0
 
-# For reproducibility
-np.random.seed(1234)
-
-NN_infos = [2, 20, 1, 4, 3000, 0.01] # input_size, hidden_size, output_size, depth, epochs, learning_rate
-layers = [2, 20, 20, 20, 20, 1]
+  return bc_res
 
 # Exact solution data set
-x_domain = np.linspace(0., 4., 1000)
-t_domain = np.linspace(0., 60., 1000)
+x_domain = np.linspace(0., L, 1000)
+t_domain = np.linspace(0., Interval, 1000)
 x = np.array(to_float(mathematica_data["x"])).flatten()[:,None]
 t = np.array(to_float(mathematica_data["t"])).flatten()[:,None]
 u = np.array(to_float(mathematica_data["u"])).T
 
 X, T = np.meshgrid(x,t)
-
 # Given two one-dimensional arrays, x and y, np.meshgrid(x, y) returns two 2-D arrays, X and Y.
 # The array X contains the x-coordinates of all points on the grid, with x values repeated row-wise.
 # The array Y contains the y-coordinates of all points on the grid, with y values repeated column-wise.
 
-X_star = np.hstack((X.flatten()[:,None], T.flatten()[:,None])) # empilha arrays horizontalmente (em colunas)
+X_star = np.hstack((X.flatten()[:,None], T.flatten()[:,None])) # stack arrays horizontally (into columns)
 u_star = u.flatten()[:,None]
-UI = griddata(X_star, u_star, (X, T), method='cubic') #! APAGAR
 
 # Domain bounds
-Xmin = X_star.min(0)
+Xmin = X_star.min(0) #! COLOCAR PONTOS DA BOUNDARY NOS INPUTS
 Xmax = X_star.max(0)
 
 plot_solution(X_star, u_star)
@@ -130,26 +128,42 @@ plot_solution(X_star, u_star)
 ############################################# Training on Noisy Data #######################################################
 # Training data set
 nSamples = 5000
-noise = 1.0
+nCollocations = 5000
+noise = 0.0
 sample = np.random.choice(X_star.shape[0], nSamples, replace=False) # generating nSamples random samples from the input data set X
 X_train = X_star[sample,:]
-u_train = u_star[sample,:] + np.random.uniform(-noise, noise, nSamples).T
+u_train = u_star[sample,:] + noise * np.random.randn(nSamples, 1)
 # u_train = u_train + noise*np.std(u_train)*np.random.randn(u_train.shape[0], u_train.shape[1])
 
-# Training
-model = PINN_DynamicBar(X_train, u_train, NN_infos, Xmin, Xmax, layers, pde=net_physics)
-losses = model.train()
+# Neural Network Architecture
+depth = 4 # number of layers
+width = 30 # number of neurons in the layer
+lr = 1e-2
+epochs = 3000
+NN_infos = [2, width, 1, depth, 1000, lr] # input_size, hidden_size, output_size, depth, epochs, learning_rate
+#layers = [2, 30, 30, 30, 30, 1]
 
-# Evaluation
+print(f"Neural Network Info: \n\t Number of Neurons: {width} \n\t Number of Layers: {depth} \n\t Epochs: {epochs} \n\t Learning Rate: {lr}")
+
+# Training
+model = PINN_DynamicBar(X_train, u_train, NN_infos, Xmin, Xmax, pde=net_physics, bc=net_bc, weight_bc=0.2)
+initial_time = time.time()
+losses = model.train(nCollocations)
+end_time = time.time()
+total_time = end_time - initial_time
+print(f"Training Time: {total_time} s")
+
+# Prediction
 u_pred = model.predict(X_star)
 U_pred = griddata(X_star, u_pred.flatten(), (X, T), method='cubic')
-# error_u = np.linalg.norm(u_star-u_pred,2)/np.linalg.norm(u_star,2)
+error_u = np.linalg.norm(u_star-u_pred,2)/np.linalg.norm(u_star,2)
 
 elas_value = model.elas.detach().cpu().numpy() # detach takes the grad tracking and item gives the raw value (not a tensor but a float)
 #error_E = np.abs(elas_value - E(np_to_th(x))) * 100
 
 plot_loss(losses)
 #print('Error E: %.5f%%' % (error_E))
+print(f"Error u = {error_u}")
 plot_predictions(model, X_star, X_train, u_star)
 
 
