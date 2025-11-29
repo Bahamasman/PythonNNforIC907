@@ -120,23 +120,23 @@ print("-" * 60)
 
 adam_configs = [
     # Learning rate sweep - wider range with extremes
-    {'optimizer': 'Adam', 'lr': 0.0001, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_LR0.0001_VeryLow'},
-    {'optimizer': 'Adam', 'lr': 0.001, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_LR0.001_Low'},
-    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_LR0.01_Medium'},
-    {'optimizer': 'Adam', 'lr': 0.05, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_LR0.05_High'},
-    {'optimizer': 'Adam', 'lr': 0.2, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_LR0.2_VeryHigh'},
+    {'optimizer': 'Adam', 'lr': 0.0001, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_LR0.0001'},
+    {'optimizer': 'Adam', 'lr': 0.001, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_LR0.001'},
+    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_LR0.01'},
+    {'optimizer': 'Adam', 'lr': 0.05, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_LR0.05'},
+    {'optimizer': 'Adam', 'lr': 0.2, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_LR0.2'},
     
     # Architecture sweep - extreme sizes
-    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [10], 'activation': 'LeakyReLU', 'name': 'ADAM_Arch10_Tiny'},
-    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [50], 'activation': 'LeakyReLU', 'name': 'ADAM_Arch50_Small'},
-    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_Arch100_Medium'},
-    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [300], 'activation': 'LeakyReLU', 'name': 'ADAM_Arch300_Large'},
-    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [500], 'activation': 'LeakyReLU', 'name': 'ADAM_Arch500_VeryLarge'},
+    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [10], 'activation': 'LeakyReLU', 'name': 'ADAM_Arch10'},
+    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [50], 'activation': 'LeakyReLU', 'name': 'ADAM_Arch50'},
+    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [100], 'activation': 'LeakyReLU', 'name': 'ADAM_Arch100'},
+    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [300], 'activation': 'LeakyReLU', 'name': 'ADAM_Arch300'},
+    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [500], 'activation': 'LeakyReLU', 'name': 'ADAM_Arch500'},
     
     # Deep networks - various depths
-    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [100, 50], 'activation': 'LeakyReLU', 'name': 'ADAM_Deep2_Shallow'},
-    {'optimizer': 'Adam', 'lr': 0.005, 'hidden_size': [100, 75, 50, 25], 'activation': 'LeakyReLU', 'name': 'ADAM_Deep4_Medium'},
-    {'optimizer': 'Adam', 'lr': 0.003, 'hidden_size': [100, 80, 60, 40, 20], 'activation': 'LeakyReLU', 'name': 'ADAM_Deep5_VeryDeep'},
+    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [100, 50], 'activation': 'LeakyReLU', 'name': 'ADAM_Deep2'},
+    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [100, 75, 50, 25], 'activation': 'LeakyReLU', 'name': 'ADAM_Deep4'},
+    {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [100, 80, 60, 40, 20], 'activation': 'LeakyReLU', 'name': 'ADAM_Deep5'},
     
     # Activation function sweep
     {'optimizer': 'Adam', 'lr': 0.01, 'hidden_size': [100], 'activation': 'sigmoid', 'name': 'ADAM_Sigmoid'},
@@ -250,16 +250,21 @@ if adam_results:
     fig4, ax4 = plt.subplots(figsize=(10, 8))
     config_names_short = [r['config']['name'].replace('ADAM_', '') for r in adam_sorted]
     test_train_ratios = [r['ratio'] for r in adam_sorted]
-    colors_overfit = ['red' if r['ratio'] > 1.1 else 'orange' if r['ratio'] > 1.05 else 'green' 
-                      for r in adam_sorted]
+    # Use the same overfitting archetypes used elsewhere: 
+    # - red: flagged as overfitting by the detection logic (`is_overfitting`)
+    # - orange: warning when ratio is > 1.05 (mild gap)
+    # - green: good (ratio close to 1)
+    colors_overfit = [
+        'red' if (r.get('is_overfitting', False) or r['ratio'] > 1.05) else 'green'
+        for r in adam_sorted
+    ]
     
     bars_overfit = ax4.barh(range(len(config_names_short)), test_train_ratios, 
                             color=colors_overfit, alpha=0.7, edgecolor='black')
-    ax4.axvline(x=1.0, color='blue', linestyle='--', linewidth=2, label='Perfect Fit (ratio=1.0)')
     ax4.axvline(x=1.1, color='darkred', linestyle='--', linewidth=2, label='Overfit Threshold (ratio=1.1)')
     ax4.set_xlabel('Test Loss / Train Loss Ratio')
     ax4.set_ylabel('Configuration')
-    ax4.set_title('Overfitting Detection (Green=Good, Orange=Warning, Red=Overfit)', fontweight='bold')
+    ax4.set_title('Overfitting Detection', fontweight='bold')
     ax4.set_yticks(range(len(config_names_short)))
     ax4.set_yticklabels(config_names_short, fontsize=8)
     ax4.legend(fontsize=9)
@@ -274,11 +279,12 @@ if adam_results:
     plt.show()
     
     # Plot 5: Performance vs Efficiency
+    # Use the same sorted order and color mapping as the overfitting plot so archetypes match
     fig5, ax5 = plt.subplots(figsize=(12, 6))
-    all_r2s = [r['r2_score'] for r in adam_results]
-    all_times = [r['training_time'] for r in adam_results]
-    all_names = [r['config']['name'].replace('ADAM_', '') for r in adam_results]
-    colors_scatter = ['red' if r.get('is_overfitting', False) else 'green' for r in adam_results]
+    all_r2s = [r['r2_score'] for r in adam_sorted]
+    all_times = [r['training_time'] for r in adam_sorted]
+    all_names = [r['config']['name'].replace('ADAM_', '') for r in adam_sorted]
+    colors_scatter = colors_overfit
     
     # Plot points with numbers
     for i, (time, r2, color) in enumerate(zip(all_times, all_r2s, colors_scatter)):
