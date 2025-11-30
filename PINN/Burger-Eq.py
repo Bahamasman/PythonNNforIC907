@@ -242,3 +242,23 @@ ax.set_title('$u(t,x)$', fontsize = 20)
 ax.tick_params(labelsize=15)
 
 plt.show()
+
+
+# def net_physics(model, x, t):
+#     s = model.scales
+#     u = model.net_u(x, t)
+
+#     dudt  = grad(u, t)
+#     d2udt2 = grad(dudt, t)
+
+#     dudx  = grad(u, x)
+#     Elas_scaled = model.Elas   # já está normalizado
+#     d2udx2 = grad(Elas_scaled * dudx, x)
+
+#     # Coeficientes da PDE normalizada
+#     Ct = (s.rho * s.A * s.U) / (s.T**2)
+#     Cx = (s.E * s.A * s.U) / (s.L**2)
+
+#     f_scaled = s.f0_th(x) / s.f0
+
+#     return Ct * d2udt2 - Cx * d2udx2 - f_scaled

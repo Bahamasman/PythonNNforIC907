@@ -1,14 +1,15 @@
 from pinn import *
 import time
+import os
 
-#TODO Pass NN loss as optional
-#TODO Add BCs
-#TODO Normalize E
+
+#TODO Organizar classes em files separados
+#TODO Monitoring each loss
 
 ############################################# Impoting Data #######################################################
-input_path = "C:\\Users\\theyd\\OneDrive\\Desktop\\marina\\PythonNNforIC907\\PINN\\InputData\\"
-input_file = "data1.json"
-input_data = input_path + input_file #! DO THIS IN A SMATER WAY
+input_path = "C:\\Users\\itopo\\Documents\\Marina\\NeuralNetwork-Project\\PythonNNforIC907\\PINN\\InputData\\"
+input_file = "data2.json"
+input_data = os.path.join(input_path, input_file)
 
 with open(input_data) as myFile:
     mathematica_data = json.load(myFile)
@@ -22,66 +23,78 @@ E_type = mathematica_data["Properties"]["E"]
 f_type = mathematica_data["Properties"]["f"]
 
 if("u_x0") in mathematica_data["BCs_ICs"]: u_x0 = to_float(mathematica_data["BCs_ICs"]["u_x0"])
+else: u_x0 = None
 if("u_xL") in mathematica_data["BCs_ICs"]: u_xL = to_float(mathematica_data["BCs_ICs"]["u_xL"])
+else: u_xL = None
 if("u_t0") in mathematica_data["BCs_ICs"]: u_t0 = to_float(mathematica_data["BCs_ICs"]["u_t0"])
+else: u_t0 = None
 if("du_dx0") in mathematica_data["BCs_ICs"]: du_dx0 = to_float(mathematica_data["BCs_ICs"]["du_dx0"])
+else: du_dx0 = None
 
 def E(x:torch.Tensor):
   if is_numeric(E_type):
     return to_float(E_type)*torch.ones_like(x)
   elif E_type == "Polynomial":
-    return x
+    return 2*x
   elif E_type == "Piecewise":
     return torch.where(x < 2., 2.0, 5.0) 
+
+E0_guess = 1.0e8   #! CHANGE ACOORDING TO THE INPUT DATA
 
 def f(x:torch.Tensor):
   if is_numeric(f_type):
     return to_float(f_type)*torch.ones_like(x)
   elif f_type == "Polynomial":
-    return 2*x
+    return -200000*x
   elif f_type == "Piecewise":
     return torch.where(x < 2., torch.tensor(10000000.0), torch.tensor(0.0)) # allows for element-wise selection from two tensors based on a boolean condition
 
+def f_numpy(x:np.ndarray):
+    x_t = torch.tensor(x, dtype=torch.float32).reshape(-1, 1)
+    return f(x_t).detach().cpu().numpy().flatten()
 
 ############################################# Initial Configurations #######################################################
-# Dynamic-Bar PDE
-def net_physics(model:torch.nn.Module, x, t):
-
-  Elas = model.elas
-  # rho = model.rho
-  u = model.net_u(x, t)
-
-  dudt = grad(u, t)
-  d2udt2 = grad(dudt, t)
-  dudx = grad(u, x)
-  d2udx2 = grad(Elas*dudx, x) 
-
-  pde = rho * A * d2udt2 - A * d2udx2 - f(x) #! CHECK 
-  return pde
+# Dynamic-Bar PDE Parameters
+def physics_infos(): 
+  return A, rho, E_type, f_type
 
 #Boundary/Initial Conditions
-def net_bc(model):
-  n_bc = 200 
-  t0 = torch.linspace(0, Interval, n_bc).view(-1, 1).requires_grad_(True) # generate points t to impose BC u_0 = 0
-  x0 = torch.zeros_like(t0).requires_grad_(True)
-  u_x0_pred = model.net_u(x0, t0)
+def net_bc(model:PINN_DynamicBar):
+    bc_res_list = []
+    n_bc = 200
 
-  xL = L * torch.ones_like(t0).requires_grad_(True)
-  u_xL_pred = model.net_u(xL, t0)
+    # prepare time vector
+    t0 = torch.linspace(0, Interval, n_bc, device=device).view(-1, 1).requires_grad_(True)
 
-  x_init = torch.linspace(0, L, n_bc).view(-1, 1).requires_grad_(True)
-  t_init = torch.zeros_like(x_init)
-  u_t0_pred = model.net_u(x_init, t_init)
+    # left boundary u_x0
+    if u_x0 is not None:
+        x0 = torch.zeros_like(t0).requires_grad_(True)
+        u_x0_pred_scaled = model.net_u(x0, t0)
+        u_x0_scaled = torch.tensor(model.scales.u_phys_to_scaled(u_x0), dtype=torch.float32, device=device).unsqueeze(-1)
+        bc_res_list.append(u_x0_pred_scaled - u_x0_scaled)
 
-  bc_res = u_x0_pred - u_x0
-  # bc_res = u_xL_pred - u_xL
-  # bc_res = u_t0_pred - u_t0
+    # right boundary u_xL
+    if u_xL is not None:
+        xL = L * torch.ones_like(t0).requires_grad_(True)
+        u_xL_pred_scaled = model.net_u(xL, t0)
+        u_xL_scaled = torch.tensor(model.scales.u_phys_to_scaled(u_xL), dtype=torch.float32, device=device).unsqueeze(-1)
+        bc_res_list.append(u_xL_pred_scaled - u_xL_scaled)
 
-  return bc_res
+    # initial condition u_t0 
+    if u_t0 is not None:
+        x_init = torch.linspace(0, L, n_bc, device=device).view(-1, 1).requires_grad_(True)
+        t_init = torch.zeros_like(x_init)
+        u_t0_pred = model.net_u(x_init, t_init)
+        u_t0_scaled = torch.tensor(model.scales.u_phys_to_scaled(u_t0), dtype=torch.float32, device=device).unsqueeze(-1)
+        bc_res_list.append(u_t0_pred - u_t0_scaled)
 
+    if len(bc_res_list) == 0:
+        # No BCs provided: return zero residual (so BC loss = 0)
+        return torch.zeros((1,1), device=device)
+    else:
+        return torch.cat(bc_res_list, dim=0)
+    
 # Exact solution data set
-x_domain = np.linspace(0., L, 1000)
-t_domain = np.linspace(0., Interval, 1000)
 x = np.array(to_float(mathematica_data["x"])).flatten()[:,None]
 t = np.array(to_float(mathematica_data["t"])).flatten()[:,None]
 u = np.array(to_float(mathematica_data["u"])).T
@@ -95,10 +108,10 @@ X_star = np.hstack((X.flatten()[:,None], T.flatten()[:,None])) # stack arrays ho
 u_star = u.flatten()[:,None]
 
 # Domain bounds
-Xmin = X_star.min(0) #! COLOCAR PONTOS DA BOUNDARY NOS INPUTS
+Xmin = X_star.min(0) 
 Xmax = X_star.max(0)
 
-plot_solution(X_star, u_star)
+#plot_solution(X_star, u_star)
 
 
 ############################################# Training on Non-noisy Data #######################################################
@@ -136,37 +149,72 @@ u_train = u_star[sample,:] + noise * np.random.randn(nSamples, 1)
 # u_train = u_train + noise*np.std(u_train)*np.random.randn(u_train.shape[0], u_train.shape[1])
 
 # Neural Network Architecture
-depth = 4 # number of layers
+depth = 3 # number of layers
 width = 30 # number of neurons in the layer
-lr = 1e-2
-epochs = 3000
-NN_infos = [2, width, 1, depth, 1000, lr] # input_size, hidden_size, output_size, depth, epochs, learning_rate
+lr = 1e-3
+epochs = 2000
+NN_infos = [2, width, 1, depth, epochs, lr] # input_size, hidden_size, output_size, depth, epochs, learning_rate
 #layers = [2, 30, 30, 30, 30, 1]
+# Create Scales object (choose a reference E0: you can set an initial guess)
+
+scales = Scales(L0=L, E0=E0_guess, A0=A, rho0=rho, f0_np=f_numpy, f0_th=f) 
 
 print(f"Neural Network Info: \n\t Number of Neurons: {width} \n\t Number of Layers: {depth} \n\t Epochs: {epochs} \n\t Learning Rate: {lr}")
 
 # Training
-model = PINN_DynamicBar(X_train, u_train, NN_infos, Xmin, Xmax, pde=net_physics, bc=net_bc, weight_bc=0.2)
+model = PINN_DynamicBar(X_train, u_train, NN_infos, Xmin, Xmax, scales, pde=physics_infos, bc=net_bc, weight_bc=0.2)
 initial_time = time.time()
-losses = model.train(nCollocations)
+losses, losses_Data, losses_PDE, losses_BC = model.train(nCollocations)
 end_time = time.time()
 total_time = end_time - initial_time
-print(f"Training Time: {total_time} s")
+print(f"Training Time: {total_time:.3f} s")
 
-# Prediction
+plot_loss(losses)
+# plot_loss(losses_PDE, title="PDE Loss")
+# plot_loss(losses_Data, title="Data Loss")
+# plot_loss(losses_BC, title="BC Loss")
+
+# Prediction (physical)
 u_pred = model.predict(X_star)
 U_pred = griddata(X_star, u_pred.flatten(), (X, T), method='cubic')
 error_u = np.linalg.norm(u_star-u_pred,2)/np.linalg.norm(u_star,2)
+print(f"Relative L2 error (u): {error_u:.3e}")
 
-elas_value = model.elas.detach().cpu().numpy() # detach takes the grad tracking and item gives the raw value (not a tensor but a float)
-#error_E = np.abs(elas_value - E(np_to_th(x))) * 100
+# Estimate E(x) (physical) 
+E_pred = model.predict_E(X_star[:,0:1])
 
-plot_loss(losses)
+
 #print('Error E: %.5f%%' % (error_E))
-print(f"Error u = {error_u}")
+def relative_error_E(E_real, E_pred: np.ndarray, x_eval: np.ndarray):
+    """
+    Calcula o erro relativo de E(x).
+    - E_pred_np: valores preditos (numpy), obtidos de model.predict_E(x)
+    - x_eval_np: pontos de x (numpy) usados para avaliação
+    - E_real_func: função real E(x) que recebe torch.Tensor(x) e retorna torch.Tensor
+                  (exatamente como você definiu no seu código original)
+    """
+    x_th = np_to_th(x_eval).requires_grad_(True).to(device)
+
+    E_real_th = E_real(x_th)
+
+    #! NÂO SEI NÂO SE ISSO VAI FUNCIONAR PARA O CASO ESCALAR
+    if isinstance(E_real_th, torch.Tensor):
+        E_real_np = E_real_th.detach().cpu().numpy().flatten()
+    else:
+        E_real_np = np.ones_like(E_pred.flatten()) * float(E_real_th)
+
+    E_pred = E_pred.flatten() # ensure it's a 1D array
+
+    # L2 Relative Error
+    rel_error = np.linalg.norm(E_pred - E_real_np) / np.linalg.norm(E_real_np)
+
+    return rel_error
+
+error_E = relative_error_E(E, E_pred, X_star[:,0:1])
+print(f"Relative L2 error (E): {error_E:.3e}")
+
+
 plot_predictions(model, X_star, X_train, u_star)
-
-
 ############################################# Plotting Results #######################################################
 fig = plt.figure(figsize=(9, 10)) # Creates a new empty figure (the canvas)
 ax = fig.add_subplot(111) # Adds a single subplot (an Axes object) to the figure, 1 row, 1 column, 1 subplot
