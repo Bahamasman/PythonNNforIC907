@@ -5,9 +5,10 @@ import os
 #TODO Plotar os pontos de trainamento
 #TODO Adicionar ruído nos dados
 #TODO Alterar Layers, Neurons, NCollocation, NEpochs, Learning Rate
+#TODO Escolher 4 casos diferentes de E(x) e f(x) (constante, polinomial, piecewise, outro)
 
 ############################################# Impoting Data #######################################################
-input_path = "C:\\Users\\theyd\\OneDrive\\Desktop\\marina\\PythonNNforIC907\\PINN\\InputData\\"
+input_path = "C:\\Users\\itopo\\Documents\\Marina\\NeuralNetwork-Project\\PythonNNforIC907\\PINN\\InputData\\"
 input_file = "data8.json"
 input_data = os.path.join(input_path, input_file)
 
@@ -109,115 +110,83 @@ u_star = u.flatten()[:,None]
 Xmin = X_star.min(0) 
 Xmax = X_star.max(0)
 
-plot_solution(X_star, u_star)
-
 ############################################# Training on Noisy Data #######################################################
-# Training data set
-nSamples = 7000
-nCollocations = 10000
-noise = 0.0 # noise level for u data
-sample = np.random.choice(X_star.shape[0], nSamples, replace=False) # generating nSamples random samples from the input data set X
-X_train = X_star[sample,:]
-u_train = u_star[sample,:] + np.random.uniform(-noise,noise,nSamples) # Adding some noise
-# u_train = u_train + noise*np.std(u_train)*np.random.randn(u_train.shape[0], u_train.shape[1])
+def set_up_training_set(noise_level:float):
+  plot_solution(X_star, u_star)
+  # Training data set
+  nSamples = 5000
+  noise = noise_level # noise level for u data
+  sample = np.random.choice(X_star.shape[0], nSamples, replace=False) # generating nSamples random samples from the input data set X
+  X_train = X_star[sample,:]
+  u_train = u_star[sample,:] + np.random.uniform(-noise,noise,nSamples) # Adding some noise
+  # u_train = u_train + noise*np.std(u_train)*np.random.randn(u_train.shape[0], u_train.shape[1])
+  density_plot(X_star, u_star, X_train) # Plotting the training data points
 
-# Neural Network Architecture
-depth = 2 # number of layers
-width = 100 # number of neurons in the layer
-lr = 1e-3
-epochs = 4000
-NN_infos = [2, width, 1, depth, epochs, lr] # input_size, hidden_size, output_size, depth, epochs, learning_rate
-#layers = [2, 30, 30, 30, 30, 1]
-# Create Scales object (choose a reference E0: you can set an initial guess)
+  return X_train, u_train
 
-scales = Scales(L0=L, E0=E, A0=A, rho0=rho, f0_np=f_numpy, f0_th=f) 
+def Simulation(nLayers:int, nNeurons:int, nEpochs:int, nCollocations:int, X_train, u_train, learning_rate = 1e-3):
+   # Neural Network Architecture
+   NN_infos = [2, nNeurons, 1, nLayers, nEpochs, learning_rate] # input_size, hidden_size, output_size, depth, epochs, learning_rate
+   #layers = [2, 30, 30, 30, 30, 1]
 
-print(f"Neural Network Info: \n\t Number of Neurons: {width} \n\t Number of Layers: {depth} \n\t Epochs: {epochs} \n\t Learning Rate: {lr}")
+   # Create Scales object 
+   scales = Scales(L0=L, E0=E, A0=A, rho0=rho, f0_np=f_numpy, f0_th=f) 
+   
+   # print(f"Neural Network Info: \n\t Number of Neurons: {width} \n\t Number of Layers: {depth} \n\t Epochs: {epochs} \n\t Learning Rate: {lr}")
 
-# Training
-model = PINN_DynamicBar(X_train, u_train, NN_infos, Xmin, Xmax, scales, pde=physics_infos, bc=net_bc, weight_pde=1.0, weight_bc=3.0)
-initial_time = time.time()
-losses, losses_Data, losses_PDE, losses_BC = model.train(nCollocations)
-end_time = time.time()
-total_time = end_time - initial_time
-print(f"Training Time: {total_time:.3f} s")
+   # Training
+   model = PINN_DynamicBar(X_train, u_train, NN_infos, Xmin, Xmax, scales, pde=physics_infos, bc=net_bc, weight_pde=1.0, weight_bc=3.0)
+   initial_time = time.time()
+   losses, losses_Data, losses_PDE, losses_BC = model.train(nCollocations)
+   end_time = time.time()
+   total_time = end_time - initial_time
 
-plot_loss(losses)
-# plot_loss(losses_PDE, title="PDE Loss")
-# plot_loss(losses_Data, title="Data Loss")
-# plot_loss(losses_BC, title="BC Loss")
+   # print(f"Training Time: {total_time:.3f} s")
 
-# Prediction (physical)
-u_pred = model.predict(X_star)
-U_pred = griddata(X_star, u_pred.flatten(), (X, T), method='cubic')
-error_u = np.linalg.norm(u_star-u_pred,2)/np.linalg.norm(u_star,2)
-print(f"Relative L2 error (u): {error_u:.3e}")
+   plot_loss(losses, iter)
+   # plot_loss(losses_PDE, title="PDE Loss")
+   # plot_loss(losses_Data, title="Data Loss")
+   # plot_loss(losses_BC, title="BC Loss")
 
-# Estimate E(x) (physical) 
-E_pred = model.predict_E(X_star[:,0:1])
+   # Prediction (physical)
+   u_pred = model.predict(X_star)
+   U_pred = griddata(X_star, u_pred.flatten(), (X, T), method='cubic')
+   error_u = np.linalg.norm(u_star-u_pred,2)/np.linalg.norm(u_star,2)
+   #print(f"Relative L2 error (u): {error_u:.3e}")
 
+   # Estimate E(x) (physical) 
+   E_pred = model.predict_E(X_star[:,0:1])
+   error_E, E_real_np, E_pred_np = relative_error_E(E, E_pred, X_star[:,0:1])
 
-#print('Error E: %.5f%%' % (error_E))
-def relative_error_E(E_real, E_pred: np.ndarray, x_eval: np.ndarray):
-    """
-    Calcula o erro relativo de E(x).
-    - E_pred_np: valores preditos (numpy), obtidos de model.predict_E(x)
-    - x_eval_np: pontos de x (numpy) usados para avaliação
-    - E_real_func: função real E(x) que recebe torch.Tensor(x) e retorna torch.Tensor
-                  (exatamente como você definiu no seu código original)
-    """
-    x_th = np_to_th(x_eval).requires_grad_(True).to(device)
+   # print(f"Relative L2 error (E): {error_E:.3e}")
+   plot_prediction_E(model, X_star, E_real_np, E_pred_np, iter)
+   plot_predictions(model, X_star, X_train, u_star, iter)
+  
+   return total_time, error_u, error_E
 
-    E_real_th = E_real(x_th)
-
-    if isinstance(E_real_th, torch.Tensor):
-        E_real_np = E_real_th.detach().cpu().numpy().flatten()
-    else:
-        E_real_np = np.ones_like(E_pred.flatten()) * float(E_real_th)
-
-    E_pred = E_pred.flatten() # ensure it's a 1D array
-
-    # L2 Relative Error
-    rel_error = np.linalg.norm(E_pred - E_real_np) / np.linalg.norm(E_real_np)
-
-    return rel_error, E_real_np, E_pred
-
-error_E, E_real_np, E_pred_np = relative_error_E(E, E_pred, X_star[:,0:1])
-
-print(f"Relative L2 error (E): {error_E:.3e}")
-
-
-plot_prediction_E(model, X_star, E_real_np, E_pred_np)
-plot_predictions(model, X_star, X_train, u_star)
 ############################################# Plotting Results #######################################################
-fig = plt.figure(figsize=(9, 10)) # Creates a new empty figure (the canvas)
-ax = fig.add_subplot(111) # Adds a single subplot (an Axes object) to the figure, 1 row, 1 column, 1 subplot
+# fig = plt.figure(figsize=(9, 10)) # Creates a new empty figure (the canvas)
+# ax = fig.add_subplot(111) # Adds a single subplot (an Axes object) to the figure, 1 row, 1 column, 1 subplot
 
-# Displays a 2D array (U_pred.T) as a colored image
-h = ax.imshow(U_pred, interpolation='nearest', cmap='rainbow', 
-              extent=[x.min(), x.max(), t.min(), t.max()],
-              origin='lower', aspect='auto')
+# # Displays a 2D array (U_pred.T) as a colored image
+# h = ax.imshow(U_pred, interpolation='nearest', cmap='rainbow', 
+#               extent=[x.min(), x.max(), t.min(), t.max()],
+#               origin='lower', aspect='auto')
 
-# Colorbar axes configs
-divider = make_axes_locatable(ax) # “attach” new axes next to an existing one (used for colorbars).
-cax = divider.append_axes("right", size="5%", pad=0.10) # Creates a new vertical axis to the right side, with spacing pad
-cbar = fig.colorbar(h, cax=cax) # Creates a colorbar showing the mapping between colors and values.
-cbar.ax.tick_params(labelsize=15)
+# # Colorbar axes configs
+# divider = make_axes_locatable(ax) # “attach” new axes next to an existing one (used for colorbars).
+# cax = divider.append_axes("right", size="5%", pad=0.10) # Creates a new vertical axis to the right side, with spacing pad
+# cbar = fig.colorbar(h, cax=cax) # Creates a colorbar showing the mapping between colors and values.
+# cbar.ax.tick_params(labelsize=15)
 
-# Plot training data points
-ax.plot(X_train[:,0], X_train[:,1], 'kx', label = f'Data ({nSamples} points)',
-        markersize = 4, clip_on = False, alpha=.5)
+# # Plot training data points
+# ax.plot(X_train[:,0], X_train[:,1], 'kx', label = f'Data ({nSamples} points)',
+#         markersize = 4, clip_on = False, alpha=.5)
 
-# Plot vertical white lines at selected times
-# line = np.linspace(x.min(), x.max(), 2)[:,None]
-# ax.plot(t[25]*np.ones((2,1)), line, 'w-', linewidth = 1)
-# ax.plot(t[50]*np.ones((2,1)), line, 'w-', linewidth = 1)
-# ax.plot(t[75]*np.ones((2,1)), line, 'w-', linewidth = 1)
+# ax.set_xlabel('$x$', size=20)
+# ax.set_ylabel('$t$', size=20)
+# ax.legend(loc='upper center', bbox_to_anchor=(0.9, -0.05), ncol=5, frameon=False, prop={'size': 15})
+# ax.set_title('$u(x,t)$', fontsize = 20)
+# ax.tick_params(labelsize=15)
 
-ax.set_xlabel('$x$', size=20)
-ax.set_ylabel('$t$', size=20)
-ax.legend(loc='upper center', bbox_to_anchor=(0.9, -0.05), ncol=5, frameon=False, prop={'size': 15})
-ax.set_title('$u(x,t)$', fontsize = 20)
-ax.tick_params(labelsize=15)
-
-plt.show()
+# plt.show()
