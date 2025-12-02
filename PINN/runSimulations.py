@@ -1,9 +1,9 @@
 from main import *
 
-Layers = [1, 2] #, 3, 4]
-Neurons = [30, 40]#, 50, 100]
-Epochs = [2000]#, 3000, 4000]
-nCollocations = [10000]#, 20000]
+Layers = [2, 3, 4]
+Neurons = [16, 32, 64]
+Epochs = [2000, 3000, 4000]
+nCollocations = [20000]
 
 Learning_Rate = 0.001
 nSamples = 5000
@@ -22,7 +22,7 @@ for layers in Layers:
     for neurons in Neurons:
         for epochs in Epochs:
                 for nCollocation in nCollocations:
-                    train_time, error_u, error_E = Simulation(layers, neurons, epochs, nCollocation, X_train, u_train, iter)
+                    train_time, error_u, error_E = Simulation(layers, neurons, epochs, nCollocation, X_train, u_train, iter=str(iter))
                     training_times.append(train_time)
                     errors_u.append(error_u)
                     errors_E.append(error_E)

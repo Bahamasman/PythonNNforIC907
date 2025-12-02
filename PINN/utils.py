@@ -1,5 +1,6 @@
 import sys
 import json
+import os
 
 import math
 
@@ -56,19 +57,22 @@ def is_numeric(s):
     except Exception:
         return False # Return False otherwise
 
-# Plot loss
-def plot_loss(losses, iter, title='Training Total Loss'):
+def plot_loss(losses, it:str, case:str, title='Training Total Loss'):
   plt.figure(figsize=(8,4))
   plt.plot(losses, color='tab:blue')
   plt.xlabel('Epoch')
   plt.ylabel('Loss')
   plt.title(title)
   plt.grid(True)
-  plt.savefig(f"C:\\Users\\itopo\\Documents\\Marina\\NeuralNetwork-Project\\PythonNNforIC907\\PINN\\Plots\\Losses\\loss_{iter}.png")
+  dirpath = r"C:\Users\theyd\OneDrive\Desktop\marina\PythonNNforIC907\PINN\Plots\Losses"
+  os.makedirs(dirpath, exist_ok=True)
+  fname = os.path.join(dirpath, f"loss_{case}_{it}.png")
+  plt.savefig(fname, bbox_inches='tight')
+  plt.close()
   #plt.show()
 
 # Plot real solution
-def plot_solution(pts:np.ndarray, u:np.ndarray):
+def plot_solution(pts:np.ndarray, u:np.ndarray, case:str):
   x = pts.T[0]
   t = pts.T[1]
   u = u.ravel()
@@ -84,11 +88,14 @@ def plot_solution(pts:np.ndarray, u:np.ndarray):
   ax.set_ylabel('t')
   ax.set_zlabel('u(x,t)')
   ax.set_title('Dynamic Bar Solution')
-  plt.savefig("C:\\Users\\itopo\\Documents\\Marina\\NeuralNetwork-Project\\PythonNNforIC907\\PINN\\Plots\\Solutions\\solution_plot.png")
+  dirpath = r"C:\Users\theyd\OneDrive\Desktop\marina\PythonNNforIC907\PINN\Plots\Solutions"
+  os.makedirs(dirpath, exist_ok=True)
+  fname = os.path.join(dirpath, f"solution_plot_{case}.png")
+  plt.savefig(fname, bbox_inches='tight')
   #plt.show()
 
 # Plot PINN predictions
-def plot_predictions(net, pts:np.ndarray, pts_train:np.ndarray, u_train:np.ndarray, iter):
+def plot_predictions(net, pts:np.ndarray, pts_train:np.ndarray, u_train:np.ndarray, it:str, case:str):
   # Predicting displacement using the trained model
   predicted_disp = net.predict(pts)
 
@@ -114,10 +121,13 @@ def plot_predictions(net, pts:np.ndarray, pts_train:np.ndarray, u_train:np.ndarr
   ax.set_ylabel('t')
   ax.set_zlabel('u pred')
   plt.legend()
-  plt.savefig(f"C:\\Users\\itopo\\Documents\\Marina\\NeuralNetwork-Project\\PythonNNforIC907\\PINN\\Plots\\Predictions\\prediction_{iter}.png")
+  dirpath = r"C:\Users\theyd\OneDrive\Desktop\marina\PythonNNforIC907\PINN\Plots\Predictions"
+  os.makedirs(dirpath, exist_ok=True)
+  fname = os.path.join(dirpath, f"prediction_{case}_{it}.png")
+  plt.savefig(fname, bbox_inches='tight')
   #plt.show()
 
-def plot_prediction_E(net, X:np.ndarray, E_exact:np.ndarray, E_pred:np.ndarray, iter):
+def plot_prediction_E(net, X:np.ndarray, E_exact:np.ndarray, E_pred:np.ndarray, it, case):
   plt.figure(figsize=(8,4))
   plt.plot(X[:,0:1], E_exact, 'b-', label='Exact E(x)')
   plt.plot(X[:,0:1], E_pred, 'r--', label='PINN Predicted E(x)')
@@ -125,10 +135,14 @@ def plot_prediction_E(net, X:np.ndarray, E_exact:np.ndarray, E_pred:np.ndarray, 
   plt.ylabel('E(x)')
   plt.title('Exact vs Predicted E(x)')
   plt.grid(True)
-  plt.show()
+  dirpath = r"C:\Users\theyd\OneDrive\Desktop\marina\PythonNNforIC907\PINN\Plots\E_Predictions"
+  os.makedirs(dirpath, exist_ok=True)
+  fname = os.path.join(dirpath, f"E_predictions_{case}_{it}.png")
+  plt.savefig(fname, bbox_inches='tight')
+  # plt.show()
 
 
-def density_plot(pts, u, pts_train = None): 
+def density_plot(pts, u, pts_train, case:str): 
   x = pts.T[0]
   t = pts.T[1]
   u = u.ravel()
@@ -168,7 +182,10 @@ def density_plot(pts, u, pts_train = None):
   ax.set_title('$u(x,t)$', fontsize = 20)
   ax.tick_params(labelsize=15)
 
-  plt.savefig("C:\\Users\\itopo\\Documents\\Marina\\NeuralNetwork-Project\\PythonNNforIC907\\PINN\\Plots\\Solutions\\solution_density.png")
+  dirpath = r"C:\Users\theyd\OneDrive\Desktop\marina\PythonNNforIC907\PINN\Plots\Solutions"
+  os.makedirs(dirpath, exist_ok=True)
+  fname = os.path.join(dirpath, f"solution_density_{case}.png")
+  plt.savefig(fname, bbox_inches='tight')
   #plt.show()
 
 #print('Error E: %.5f%%' % (error_E))

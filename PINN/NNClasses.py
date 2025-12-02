@@ -1,4 +1,4 @@
-from Utils import *
+from utils import *
 from ScalesClass import Scales
 
 ############################################# Neural Network Classe #######################################################

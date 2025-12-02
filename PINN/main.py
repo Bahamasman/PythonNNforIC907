@@ -2,14 +2,13 @@ from NNClasses import *
 import time
 import os
 
-#TODO Plotar os pontos de trainamento
 #TODO Adicionar ruído nos dados
-#TODO Alterar Layers, Neurons, NCollocation, NEpochs, Learning Rate
 #TODO Escolher 4 casos diferentes de E(x) e f(x) (constante, polinomial, piecewise, outro)
 
 ############################################# Impoting Data #######################################################
-input_path = "C:\\Users\\itopo\\Documents\\Marina\\NeuralNetwork-Project\\PythonNNforIC907\\PINN\\InputData\\"
-input_file = "data8.json"
+input_path = "C:\\Users\\theyd\\OneDrive\\Desktop\\marina\\PythonNNforIC907\\PINN\\InputData\\"
+input_file = "data2.json"
+case = "2"
 input_data = os.path.join(input_path, input_file)
 
 with open(input_data) as myFile:
@@ -36,7 +35,7 @@ def E(x:torch.Tensor):
   if is_numeric(E_type):
     return to_float(E_type)*torch.ones_like(x)
   elif E_type == "Polynomial":
-    return 1e7*x
+    return 2*x
   elif E_type == "Piecewise":
     return torch.where(x < 2., 20e6, 1000000) 
 
@@ -45,7 +44,7 @@ def f(x:torch.Tensor):
   if is_numeric(f_type):
     return to_float(f_type)*torch.ones_like(x)
   elif f_type == "Polynomial":
-    return 10000*torch.sin(x)
+    return -200*x
   elif f_type == "Piecewise":
     return torch.where(x < 2., torch.tensor(10000000.0), torch.tensor(0.0)) # allows for element-wise selection from two tensors based on a boolean condition
 
@@ -112,7 +111,7 @@ Xmax = X_star.max(0)
 
 ############################################# Training on Noisy Data #######################################################
 def set_up_training_set(noise_level:float):
-  plot_solution(X_star, u_star)
+  plot_solution(X_star, u_star, case)
   # Training data set
   nSamples = 5000
   noise = noise_level # noise level for u data
@@ -120,11 +119,11 @@ def set_up_training_set(noise_level:float):
   X_train = X_star[sample,:]
   u_train = u_star[sample,:] + np.random.uniform(-noise,noise,nSamples) # Adding some noise
   # u_train = u_train + noise*np.std(u_train)*np.random.randn(u_train.shape[0], u_train.shape[1])
-  density_plot(X_star, u_star, X_train) # Plotting the training data points
+  density_plot(X_star, u_star, X_train, case) # Plotting the training data points
 
   return X_train, u_train
 
-def Simulation(nLayers:int, nNeurons:int, nEpochs:int, nCollocations:int, X_train, u_train, learning_rate = 1e-3):
+def Simulation(nLayers:int, nNeurons:int, nEpochs:int, nCollocations:int, X_train, u_train, learning_rate = 1e-3, iter="0"):
    # Neural Network Architecture
    NN_infos = [2, nNeurons, 1, nLayers, nEpochs, learning_rate] # input_size, hidden_size, output_size, depth, epochs, learning_rate
    #layers = [2, 30, 30, 30, 30, 1]
@@ -135,7 +134,7 @@ def Simulation(nLayers:int, nNeurons:int, nEpochs:int, nCollocations:int, X_trai
    # print(f"Neural Network Info: \n\t Number of Neurons: {width} \n\t Number of Layers: {depth} \n\t Epochs: {epochs} \n\t Learning Rate: {lr}")
 
    # Training
-   model = PINN_DynamicBar(X_train, u_train, NN_infos, Xmin, Xmax, scales, pde=physics_infos, bc=net_bc, weight_pde=1.0, weight_bc=3.0)
+   model = PINN_DynamicBar(X_train, u_train, NN_infos, Xmin, Xmax, scales, pde=physics_infos, bc=net_bc, weight_pde=2.0, weight_bc=2.0)
    initial_time = time.time()
    losses, losses_Data, losses_PDE, losses_BC = model.train(nCollocations)
    end_time = time.time()
@@ -143,7 +142,7 @@ def Simulation(nLayers:int, nNeurons:int, nEpochs:int, nCollocations:int, X_trai
 
    # print(f"Training Time: {total_time:.3f} s")
 
-   plot_loss(losses, iter)
+   plot_loss(losses, iter, case)
    # plot_loss(losses_PDE, title="PDE Loss")
    # plot_loss(losses_Data, title="Data Loss")
    # plot_loss(losses_BC, title="BC Loss")
@@ -159,8 +158,8 @@ def Simulation(nLayers:int, nNeurons:int, nEpochs:int, nCollocations:int, X_trai
    error_E, E_real_np, E_pred_np = relative_error_E(E, E_pred, X_star[:,0:1])
 
    # print(f"Relative L2 error (E): {error_E:.3e}")
-   plot_prediction_E(model, X_star, E_real_np, E_pred_np, iter)
-   plot_predictions(model, X_star, X_train, u_star, iter)
+   plot_prediction_E(model, X_star, E_real_np, E_pred_np, iter, case)
+   plot_predictions(model, X_star, X_train, u_star, iter, case)
   
    return total_time, error_u, error_E
 

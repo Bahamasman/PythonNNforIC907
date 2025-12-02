@@ -1,4 +1,4 @@
-from Utils import *
+from utils import *
 
 class Scales: #! ENTENDER
     def __init__(self, L0, E0, A0, rho0, f0_np, f0_th):
