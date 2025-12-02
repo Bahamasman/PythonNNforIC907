@@ -46,8 +46,13 @@ class NN(nn.Module):
 ############################################# PINN Classe #######################################################
 # Data-driven Solutions
 # Data-driven Discovery
+
 class PINN_DynamicBar():
-  def __init__(self, X:np.ndarray, u:np.ndarray, NN_infos:list, Xmin, Xmax, scales:Scales, layers=None, loss_f=nn.MSELoss(), pde=None, weight_pde=1.0, bc=None, weight_bc=0.0):
+  def __init__(self, X:np.ndarray, u:np.ndarray, 
+               NN_infos:list, 
+               Xmin, Xmax, scales:Scales, layers=None, 
+               loss_f=nn.MSELoss(), pde=None, weight_pde=1.0, bc=None, weight_bc=0.0):
+      
       '''Arguments:
       X(nSamples, input_size): inputs [[xi, ti], ...]
       u(nSamples, output_size): outputs [ui, ...]
@@ -90,7 +95,7 @@ class PINN_DynamicBar():
       else:
          # E is scalar
          self.Elas = torch.nn.Parameter(torch.tensor([1.0], dtype=torch.float32, device=device, requires_grad=True))
-         # self.model.register_parameter("Elas", self.Elas) #! VERIFICAR SE ISSO É NECESSÁRIO,
+         # self.model.register_parameter("Elas", self.Elas) 
          self.net_params = list(self.model.parameters()) + [self.Elas]
 
       # Optimizers
@@ -106,7 +111,7 @@ class PINN_DynamicBar():
           tolerance_change=1e-12, 
           line_search_fn="strong_wolfe") 
      
-  def build_E(self): # E Network (MLP) that gives as output E_scaled
+  def build_E(self): 
     return nn.Sequential(
            nn.Linear(1, 32),
            nn.Tanh(),
@@ -155,7 +160,7 @@ class PINN_DynamicBar():
       t_scaled = t_scaled.clone().detach().requires_grad_(True)
 
     inp = torch.cat([x_scaled, t_scaled], dim=1)
-    u_scaled = self.model(inp)   # ũ(x̃,t̃)
+    u_scaled = self.model(inp)   
     if hasattr(self, 'Elas') and isinstance(self.Elas, nn.Module):
       raw = self.Elas(x_scaled)   # network expects scaled x
       E_scaled = F.softplus(raw) + 1e-8

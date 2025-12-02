@@ -1,6 +1,6 @@
 from utils import *
 
-class Scales: #! ENTENDER
+class Scales: 
     def __init__(self, L0, E0, A0, rho0, f0_np, f0_th):
         self.L = float(L0)
         self.E_fun = E0
