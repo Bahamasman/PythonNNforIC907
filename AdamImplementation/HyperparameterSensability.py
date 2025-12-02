@@ -49,7 +49,7 @@ def train_and_evaluate(config, X_train, y_train, X_test, y_test, epochs, section
             
             # Check for numerical instability
             if np.isnan(train_loss) or np.isinf(train_loss):
-                print(f"  ❌ [{section_name}] {config['name']}: Training stopped at epoch {epoch} - NaN/Inf loss")
+                print(f"  [X] [{section_name}] {config['name']}: Training stopped at epoch {epoch} - NaN/Inf loss")
                 return None
                 
             NeuralNetwork.backward(y_train)
@@ -60,7 +60,7 @@ def train_and_evaluate(config, X_train, y_train, X_test, y_test, epochs, section
             test_loss = NeuralNetwork.computeLoss(y_test)
             
             if np.isnan(test_loss) or np.isinf(test_loss):
-                print(f"  ❌ [{section_name}] {config['name']}: Training stopped at epoch {epoch} - NaN/Inf test loss")
+                print(f"  [X] [{section_name}] {config['name']}: Training stopped at epoch {epoch} - NaN/Inf test loss")
                 return None
                 
             test_losses.append(test_loss)
@@ -98,23 +98,23 @@ def train_and_evaluate(config, X_train, y_train, X_test, y_test, epochs, section
                 'network': NeuralNetwork
             }
             
-            overfit_indicator = "⚠️ OVERFIT" if is_overfitting else "✅"
+            overfit_indicator = "[!] OVERFIT" if is_overfitting else "[OK]"
             print(f"  {overfit_indicator} [{section_name}] {config['name']}: R²={test_results['r2_score']:.4f}, "
                   f"Test/Train={final_ratio:.3f}, MAE={test_results['mae']:.4f}, Time={training_time:.2f}s")
             return result
         else:
-            print(f"  ❌ [{section_name}] {config['name']}: Insufficient training data")
+            print(f"  [X] [{section_name}] {config['name']}: Insufficient training data")
             return None
             
     except Exception as e:
-        print(f"  ❌ [{section_name}] {config['name']}: Error - {str(e)}")
+        print(f"  [X] [{section_name}] {config['name']}: Error - {str(e)}")
         return None
 
 # ============================================================================
 # ADAM HYPERPARAMETER SENSITIVITY STUDY
 # ============================================================================
 
-print("\n" + "🚀 ADAM HYPERPARAMETER SENSITIVITY ANALYSIS" + "🚀")
+print("\n" + "ADAM HYPERPARAMETER SENSITIVITY ANALYSIS")
 print("Comprehensive study: Learning rates, architectures, activations")
 print("-" * 60)
 
@@ -152,15 +152,15 @@ for config in adam_configs:
 
 # ADAM Analysis and Plots
 if adam_results:
-    print(f"\n📊 ADAM SENSITIVITY STUDY RESULTS:")
+    print(f"\nADAM SENSITIVITY STUDY RESULTS:")
     adam_sorted = sorted(adam_results, key=lambda x: x['r2_score'], reverse=True)
     
     # Count overfitting cases
     overfit_count = sum(1 for r in adam_results if r.get('is_overfitting', False))
-    print(f"\n⚠️  Overfitting detected in {overfit_count}/{len(adam_results)} configurations\n")
+    print(f"\n[!] Overfitting detected in {overfit_count}/{len(adam_results)} configurations\n")
     
     for i, result in enumerate(adam_sorted[:10]):  # Top 10
-        overfit_flag = "⚠️" if result.get('is_overfitting', False) else "  "
+        overfit_flag = "[!]" if result.get('is_overfitting', False) else "   "
         print(f"  {overfit_flag}{i+1}. {result['config']['name']:<30}: R²={result['r2_score']:.4f}, "
               f"Test/Train={result['ratio']:.3f}, Time={result['training_time']:.2f}s")
     
@@ -334,17 +334,17 @@ if adam_results:
     
     # ADAM Study Summary
     best_config = adam_sorted[0]
-    print(f"\n🏆 ADAM SENSITIVITY STUDY CONCLUSION:")
+    print(f"\nADAM SENSITIVITY STUDY CONCLUSION:")
     print(f"   Best ADAM Configuration: {best_config['config']['name']}")
     print(f"   Optimal Learning Rate: {best_config['config']['lr']}")
     print(f"   Optimal Architecture: {best_config['config']['hidden_size']}")
     print(f"   Optimal Activation: {best_config['config']['activation']}")
     print(f"   Best Performance: R²={best_config['r2_score']:.4f}, MAE={best_config['mae']:.4f}")
-    print(f"   Test/Train Ratio: {best_config['ratio']:.3f} {'⚠️ (Overfitting!)' if best_config.get('is_overfitting', False) else '✅ (Good generalization)'}")
+    print(f"   Test/Train Ratio: {best_config['ratio']:.3f} {'[!] (Overfitting!)' if best_config.get('is_overfitting', False) else '[OK] (Good generalization)'}")
     print(f"   Training Time: {best_config['training_time']:.2f}s")
     
     # Overfitting insights
-    print(f"\n📊 OVERFITTING ANALYSIS:")
+    print(f"\nOVERFITTING ANALYSIS:")
     print(f"   Configurations with overfitting: {overfit_count}/{len(adam_results)}")
     if overfit_count > 0:
         overfit_configs = [r for r in adam_results if r.get('is_overfitting', False)]
@@ -358,13 +358,13 @@ if adam_results:
 
 if adam_results:
     print("\n" + "="  * 80)
-    print("📋 FINAL SUMMARY & RECOMMENDATIONS")
+    print("FINAL SUMMARY & RECOMMENDATIONS")
     print("=" * 80)
     
     adam_sorted_final = sorted(adam_results, key=lambda x: x['r2_score'], reverse=True)
     best_overall = adam_sorted_final[0]
     
-    print(f"\n📊 OVERALL RESULTS - TOP 10 CONFIGURATIONS:")
+    print(f"\nOVERALL RESULTS - TOP 10 CONFIGURATIONS:")
     for i, result in enumerate(adam_sorted_final[:10]):
         print(f"  {i+1:2d}. {result['config']['name']:<25}: R²={result['r2_score']:.4f}, "
               f"Time={result['training_time']:5.2f}s, MAE={result['mae']:.4f}")
@@ -381,7 +381,7 @@ if adam_results:
     avg_r2_by_lr = [np.mean(lr_impact_data[lr]) for lr in lrs_impact]
     optimal_lr = lrs_impact[np.argmax(avg_r2_by_lr)]
     
-    print(f"\n🏆 BEST OVERALL CONFIGURATION:")
+    print(f"\nBEST OVERALL CONFIGURATION:")
     print(f"   Model: {best_overall['config']['name']}")
     print(f"   Optimizer: {best_overall['config']['optimizer']}")
     print(f"   Learning Rate: {best_overall['config']['lr']}")
@@ -390,19 +390,19 @@ if adam_results:
     print(f"   Performance: R²={best_overall['r2_score']:.4f}, MAE={best_overall['mae']:.4f}")
     print(f"   Training Time: {best_overall['training_time']:.2f}s")
     
-    print(f"\n💡 HYPERPARAMETER INSIGHTS:")
+    print(f"\nHYPERPARAMETER INSIGHTS:")
     print(f"   Optimal Learning Rate: {optimal_lr} (averaged across architectures)")
     print(f"   Best Activation Function: {best_overall['config']['activation']}")
     print(f"   Recommended Architecture: {best_overall['config']['hidden_size']}")
     
-    print(f"\n📝 PRACTICAL RECOMMENDATIONS:")
-    print(f"   • Use ADAM optimizer for this type of regression problem")
-    print(f"   • Start with learning rate around {optimal_lr}")
-    print(f"   • {best_overall['config']['activation']} activation provides good stability")
-    print(f"   • Expected R² score: {best_overall['r2_score']:.4f} ± {np.std([r['r2_score'] for r in adam_sorted_final[:5]]):.3f}")
-    print(f"   • Training time budget: ~{best_overall['training_time']:.0f}s for {epochs} epochs")
+    print(f"\nPRACTICAL RECOMMENDATIONS:")
+    print(f"   - Use ADAM optimizer for this type of regression problem")
+    print(f"   - Start with learning rate around {optimal_lr}")
+    print(f"   - {best_overall['config']['activation']} activation provides good stability")
+    print(f"   - Expected R² score: {best_overall['r2_score']:.4f} ± {np.std([r['r2_score'] for r in adam_sorted_final[:5]]):.3f}")
+    print(f"   - Training time budget: ~{best_overall['training_time']:.0f}s for {epochs} epochs")
 
 print("\n" + "=" * 80)
-print("ANALYSIS COMPLETE! 🎉")
+print("ANALYSIS COMPLETE!")
 print("ADAM hyperparameter sensitivity study successfully executed!")
 print("=" * 80)
