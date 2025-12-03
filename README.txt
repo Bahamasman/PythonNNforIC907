@@ -111,102 +111,77 @@ FILES:
                             PINN FOLDER
 ================================================================================
 
-Physics-Informed Neural Networks (PINNs) for solving partial differential 
-equations (PDEs), specifically focused on dynamic bar problems and Burger's 
-equation.
+- **Name:**: Physics-Informed Neural Network (PINN) examples for a dynamic bar and Burgers-type problems.
+- **Purpose:**: Training PINNs to solve / discover PDEs (dynamic bar elasticity problem and Burger-type PDE examples). The repository contains implementations of neural networks, scaling utilities, training drivers, plotting helpers, and example input data.
 
-FILES:
+**Requirements**
+- **Python:**: Python 3.8+ recommended.
+- **Libraries:**: `torch`, `numpy`, `scipy`, `matplotlib`. Install with `pip install -r requirements.txt` (see below).
 
-1. main.py
-   - Main training script for PINN models
-   - Loads problem configuration from JSON files in InputData/
-   - Defines physics problem: bar dynamics with E(x), f(x), boundary/initial conditions
-   - Physical parameters: Length (L), Area (A), density (rho), Young's modulus (E)
-   - Supports various E(x) and f(x) types: constant, polynomial, piecewise
-   - Trains network to satisfy PDE, boundary conditions, and initial conditions
-   - Saves plots and results
+**Quick Install**
+- **Create venv:**: `python -m venv .venv`
+- **Activate (PowerShell):**:
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+- **Install:**: `pip install torch numpy scipy matplotlib`
 
-2. NNClasses.py
-   - Neural network architecture definitions using PyTorch
-   - NN class: Deep neural network with customizable layers and activation
-   - PINN class: Physics-Informed Neural Network
-     * Implements PDE residual calculation
-     * Handles boundary and initial conditions
-     * Automatic differentiation for physics loss terms
-     * Training loop with physics-informed loss
-   - Supports custom layer configurations or automatic architecture
+**Run (examples)**
+- **Train & predict with the dynamic-bar PINN (main driver):**: From the repository `PINN` folder run:
+```powershell
+python .\main.py
+```
+- **Burger PDE example:**: The file `Burger-Eq.py` contains a separate PINN/Burgers example; run it similarly:
+```powershell
+python .\Burger-Eq.py
+```
 
-3. utils.py
-   - Utility functions for PINN implementation
-   - Functions included:
-     * np_to_th: NumPy array to PyTorch tensor conversion
-     * to_float: Safe conversion to float
-     * Plotting functions for solutions and predictions
-     * Grid generation and interpolation utilities
-   - PyTorch and NumPy compatibility helpers
-   - Random seed setting for reproducibility
+**Important Paths & Data**
+- **Input data**: The driver `main.py` loads JSON inputs from a path hardcoded (`input_path` and `input_file`). Example files are in `InputData/` (e.g. `data8.json`). Update the path in `main.py` if necessary.
+- **Functions E and f**: These functions have to be changed *manually* when they are `Polynomial` or `Piecewise` with the correct function adopted to generate the solution from Mathematica, so as to be compatible with the input data.
+- **Plots**: Generated plots are written to folders referenced in `utils.py` (e.g. `Plots/Solutions`, `Plots/Predictions`, `Plots/Losses`). Note: these paths are currently absolute in the scripts; consider changing them to relative paths (`./Plots/...`) if you want outputs inside this repo.
 
-4. ScalesClass.py
-   - Scales class for non-dimensionalization of PDE problem
-   - Computes characteristic scales from physical parameters:
-     * Length scale (L)
-     * Young's modulus scale (E0)
-     * Force scale (F0) from maximum of f(x)
-   - Methods for scaling and unscaling variables
-   - Ensures numerical stability by normalizing problem domain
+**Repository Structure**
+- **`main.py`**: Main training script for the dynamic-bar PINN. Loads JSON input, prepares training samples, constructs `Scales` and `PINN_DynamicBar`, trains and plots results.
+- **`Burger-Eq.py`**: Alternative example implementing a PINN for the Burgers equation (data-driven discovery example).
+- **`NNClasses.py`**: Core network definitions: `NN` (MLP), `PINN_DynamicBar` (PINN implementation), training/prediction methods.
+- **`ScalesClass.py`**: Scaling utilities to nondimensionalize inputs/outputs and helper conversions between physical and scaled units.
+- **`utils.py`**: Helper functions for plotting, gradients, and device selection.
+- **`InputData/`**: Example input JSON files (problem definitions and reference solutions).
+- **`Plots/`**: Target directories for saved figures (subfolders: `Solutions/`, `Predictions/`, `Losses/`, `E_Predictions/`).
 
-5. Burger-Eq.py
-   - PINN implementation specifically for Burger's equation
-   - PINN_Burger class with learnable PDE parameters (lambda_1, lambda_2)
-   - Data-driven discovery of PDE coefficients
-   - Implements residual for Burger's equation: u_t + u*u_x - lambda*u_xx = 0
-   - Automatic differentiation for spatial and temporal derivatives
+**Input JSON format (expected keys)**
+- **`Properties`**: includes `L`, `Interval`, `A`, `rho`, `E` (can be numeric, `Polynomial`, or `Piecewise`), and `f` (numeric, `Polynomial`, or `Piecewise`).
+- **`BCs_ICs`**: optional keys such as `u_x0`, `u_xL`, `u_t0`, `du_dx0` for boundary/initial conditions.
+- **`x`, `t`, `u`**: arrays with the reference solution grid used for training / evaluation.
 
-6. runSimulations.py
-   - Batch execution script for multiple PINN simulations
-   - Iterates through different JSON configuration files
-   - Automates training across various problem setups
-   - Consolidates results from multiple cases
+**Notes & Tips**
+- **Hardcoded absolute paths:**: Several files (`utils.py`, `main.py`) use absolute paths referring to `/home/marina/...`. To run locally on Windows, change those lines to relative paths. 
+- **GPU support:**: The code automatically uses CUDA if available. Ensure `torch` is installed with CUDA support for GPU runs.
+- **Data noise & sampling:**: `main.py` shows how training samples are drawn (random sampling, added noise). You can change `nSamples`, `noise`, `nCollocations`, and network hyperparameters in `main.py`.
+- **Training phases:**: Training uses Adam and then L-BFGS refinement inside `PINN_DynamicBar`.
 
-7. README.txt
-   - Additional documentation specific to PINN folder
-
-8. results.txt
-   - Stored results from PINN training runs
-   - Loss values, training times, and performance metrics
-
-InputData/ FOLDER:
-   - JSON configuration files (data0.json through data11.json)
-   - Each file defines a specific problem case:
-     * Physical parameters (L, A, rho)
-     * Young's modulus E(x) definition
-     * External force f(x) definition
-     * Boundary conditions (u at x=0, x=L)
-     * Initial conditions (u at t=0)
-
-Plots/ FOLDER:
-   - Stores generated visualizations:
-     * E_predictions/: Young's modulus predictions
-     * Losses/: Training loss curves
-     * Predictions/: Network output predictions
-     * Solutions/: Final solution plots
+**Suggested next steps / improvements**
+- **Add a `requirements.txt`**: Pin versions for `torch`, `numpy`, `scipy`, `matplotlib`.
+- **Make paths relative**: Modify the scripts to use repo-relative paths so running is straightforward.
+- **Add CLI**: Provide arguments to `main.py` for selecting `input_file`, epochs, or device.
+- **Unit tests / examples**: Add a small smoke test that runs a few training iterations to verify environment correctness.
 
 ================================================================================
                               USAGE NOTES
 ================================================================================
 
 ADAM IMPLEMENTATION:
-- Run main.py for basic training demonstration
-- Run HyperparameterSensability.py for comprehensive optimizer analysis
-- Modify network architecture in main.py: hidden_size = [neurons_layer1, neurons_layer2, ...]
-- Choose activation function: 'ReLU', 'LeakyReLU', 'tanh', 'sigmoid'
+- Run main.py for a basic demonstration
+- Run HyperparameterSensability.py for the Adam sensitivity study
+- Change architecture in main.py: hidden_size = [neurons_layer1, ...]
+- Choose activation: 'ReLU', 'LeakyReLU', 'tanh', 'sigmoid'
 
 PINN:
-- Prepare JSON file in InputData/ with problem specification
-- Update input_path and input_file in main.py
-- Run main.py to train PINN for single case
-- Run runSimulations.py to batch process multiple cases
-- Check Plots/ folder for generated visualizations
+- Place or select an input JSON file in ./PINN/InputData/
+- Edit or pass --input-file to PINN/main.py
+- Run from ./PINN: python main.py
+- Check ./PINN/Plots/ for saved figures
 
 ================================================================================
                           PROJECT STRUCTURE
