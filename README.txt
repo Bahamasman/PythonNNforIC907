@@ -111,61 +111,55 @@ FILES:
                             PINN FOLDER
 ================================================================================
 
-- **Name:**: Physics-Informed Neural Network (PINN) examples for a dynamic bar and Burgers-type problems.
-- **Purpose:**: Training PINNs to solve / discover PDEs (dynamic bar elasticity problem and Burger-type PDE examples). The repository contains implementations of neural networks, scaling utilities, training drivers, plotting helpers, and example input data.
+- Physics-Informed Neural Network (PINN) examples for a dynamic bar and Burgers-type problems.
+- Purpose: Training PINNs to solve / discover PDEs (dynamic bar elasticity problem and Burger-type PDE examples). The repository contains implementations of neural networks, scaling utilities, training drivers, plotting helpers, and example input data.
 
-**Requirements**
-- **Python:**: Python 3.8+ recommended.
-- **Libraries:**: `torch`, `numpy`, `scipy`, `matplotlib`. Install with `pip install -r requirements.txt` (see below).
+Requirements
+- Python: Python 3.8+ recommended.
+- Libraries: `torch`, `numpy`, `scipy`, `matplotlib`. Install with `pip install -r requirements.txt` (see below).
 
-**Quick Install**
-- **Create venv:**: `python -m venv .venv`
-- **Activate (PowerShell):**:
+Quick Install
+- Create venv: `python -m venv .venv`
+- Activate (PowerShell):
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
-- **Install:**: `pip install torch numpy scipy matplotlib`
+- Install: `pip install torch numpy scipy matplotlib`
 
-**Run (examples)**
-- **Train & predict with the dynamic-bar PINN (main driver):**: From the repository `PINN` folder run:
+Run (examples)
+- Train & predict with the dynamic-bar PINN (main driver): From the repository `PINN` folder run:
 ```powershell
 python .\main.py
 ```
-- **Burger PDE example:**: The file `Burger-Eq.py` contains a separate PINN/Burgers example; run it similarly:
+- Burger PDE example: The file `Burger-Eq.py` contains a separate PINN/Burgers example; run it similarly:
 ```powershell
 python .\Burger-Eq.py
 ```
 
-**Important Paths & Data**
-- **Input data**: The driver `main.py` loads JSON inputs from a path hardcoded (`input_path` and `input_file`). Example files are in `InputData/` (e.g. `data8.json`). Update the path in `main.py` if necessary.
-- **Functions E and f**: These functions have to be changed *manually* when they are `Polynomial` or `Piecewise` with the correct function adopted to generate the solution from Mathematica, so as to be compatible with the input data.
-- **Plots**: Generated plots are written to folders referenced in `utils.py` (e.g. `Plots/Solutions`, `Plots/Predictions`, `Plots/Losses`). Note: these paths are currently absolute in the scripts; consider changing them to relative paths (`./Plots/...`) if you want outputs inside this repo.
+Important Paths & Data
+- Input data: The driver `main.py` loads JSON inputs from a path hardcoded (`input_path` and `input_file`). Example files are in `InputData/` (e.g. `data8.json`). Update the path in `main.py` if necessary.
+- Functions E and f: These functions have to be changed *manually* when they are `Polynomial` or `Piecewise` with the correct function adopted to generate the solution from Mathematica, so as to be compatible with the input data.
+- Plots: Generated plots are written to folders referenced in `utils.py` (e.g. `Plots/Solutions`, `Plots/Predictions`, `Plots/Losses`). Note: these paths are currently absolute in the scripts; consider changing them to relative paths (`./Plots/...`) if you want outputs inside this repo.
 
-**Repository Structure**
-- **`main.py`**: Main training script for the dynamic-bar PINN. Loads JSON input, prepares training samples, constructs `Scales` and `PINN_DynamicBar`, trains and plots results.
-- **`Burger-Eq.py`**: Alternative example implementing a PINN for the Burgers equation (data-driven discovery example).
-- **`NNClasses.py`**: Core network definitions: `NN` (MLP), `PINN_DynamicBar` (PINN implementation), training/prediction methods.
-- **`ScalesClass.py`**: Scaling utilities to nondimensionalize inputs/outputs and helper conversions between physical and scaled units.
-- **`utils.py`**: Helper functions for plotting, gradients, and device selection.
-- **`InputData/`**: Example input JSON files (problem definitions and reference solutions).
-- **`Plots/`**: Target directories for saved figures (subfolders: `Solutions/`, `Predictions/`, `Losses/`, `E_Predictions/`).
+Repository Structure
+- `main.py`: Main training script for the dynamic-bar PINN. Loads JSON input, prepares training samples, constructs `Scales` and `PINN_DynamicBar`, trains and plots results.
+- `Burger-Eq.py`: Alternative example implementing a PINN for the Burgers equation (data-driven discovery example).
+- `NNClasses.py`: Core network definitions: `NN` (MLP), `PINN_DynamicBar` (PINN implementation), training/prediction methods.
+- `ScalesClass.py`: Scaling utilities to nondimensionalize inputs/outputs and helper conversions between physical and scaled units.
+- `utils.py`: Helper functions for plotting, gradients, and device selection.
+- `InputData/`: Example input JSON files (problem definitions and reference solutions).
+- `Plots/`: Target directories for saved figures (subfolders: `Solutions/`, `Predictions/`, `Losses/`, `E_Predictions/`).
 
-**Input JSON format (expected keys)**
-- **`Properties`**: includes `L`, `Interval`, `A`, `rho`, `E` (can be numeric, `Polynomial`, or `Piecewise`), and `f` (numeric, `Polynomial`, or `Piecewise`).
-- **`BCs_ICs`**: optional keys such as `u_x0`, `u_xL`, `u_t0`, `du_dx0` for boundary/initial conditions.
-- **`x`, `t`, `u`**: arrays with the reference solution grid used for training / evaluation.
+Input JSON format (expected keys)
+- `Properties`: includes `L`, `Interval`, `A`, `rho`, `E` (can be numeric, `Polynomial`, or `Piecewise`), and `f` (numeric, `Polynomial`, or `Piecewise`).
+- `BCs_ICs`: optional keys such as `u_x0`, `u_xL`, `u_t0`, `du_dx0` for boundary/initial conditions.
+- `x`, `t`, `u`**: arrays with the reference solution grid used for training / evaluation.
 
-**Notes & Tips**
-- **Hardcoded absolute paths:**: Several files (`utils.py`, `main.py`) use absolute paths referring to `/home/marina/...`. To run locally on Windows, change those lines to relative paths. 
-- **GPU support:**: The code automatically uses CUDA if available. Ensure `torch` is installed with CUDA support for GPU runs.
-- **Data noise & sampling:**: `main.py` shows how training samples are drawn (random sampling, added noise). You can change `nSamples`, `noise`, `nCollocations`, and network hyperparameters in `main.py`.
-- **Training phases:**: Training uses Adam and then L-BFGS refinement inside `PINN_DynamicBar`.
-
-**Suggested next steps / improvements**
-- **Add a `requirements.txt`**: Pin versions for `torch`, `numpy`, `scipy`, `matplotlib`.
-- **Make paths relative**: Modify the scripts to use repo-relative paths so running is straightforward.
-- **Add CLI**: Provide arguments to `main.py` for selecting `input_file`, epochs, or device.
-- **Unit tests / examples**: Add a small smoke test that runs a few training iterations to verify environment correctness.
+Notes & Tips
+- Hardcoded absolute paths: Several files (`utils.py`, `main.py`) use absolute paths referring to `/home/marina/...`. To run locally on Windows, change those lines to relative paths. 
+- GPU support: The code automatically uses CUDA if available. Ensure `torch` is installed with CUDA support for GPU runs.
+- Data noise & sampling: `main.py` shows how training samples are drawn (random sampling, added noise). You can change `nSamples`, `noise`, `nCollocations`, and network hyperparameters in `main.py`.
+- Training phases: Training uses Adam and then L-BFGS refinement inside `PINN_DynamicBar`.
 
 ================================================================================
                               USAGE NOTES
@@ -201,14 +195,11 @@ PythonNNforIC907/
 │   └── results/              # Experimental results
 │
 ├── PINN/                      # Physics-Informed Neural Networks
-│   ├── main.py               # Main PINN training
+│   ├── main.py               # Main PINN and prediction
 │   ├── NNClasses.py          # PINN architecture
 │   ├── utils.py              # Helper functions
 │   ├── ScalesClass.py        # Non-dimensionalization
 │   ├── Burger-Eq.py          # Burger's equation PINN
-│   ├── runSimulations.py     # Batch execution
-│   ├── README.txt
-│   ├── results.txt
 │   ├── InputData/            # JSON problem configurations
 │   └── Plots/                # Generated visualizations
 │
